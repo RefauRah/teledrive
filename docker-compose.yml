@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  # ─── PostgreSQL Database ───────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: teledrive-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teledrive
+      POSTGRES_PASSWORD: teledrive
+      POSTGRES_DB: teledrive
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teledrive"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── TeleDrive Backend + Frontend ──────────────────
+  teledrive:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: teledrive-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://teledrive:teledrive@postgres:5432/teledrive?sslmode=disable
+
+volumes:
+  pgdata:
+    driver: local

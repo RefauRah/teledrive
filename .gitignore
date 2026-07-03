@@ -1,0 +1,30 @@
+# TeleDrive
+
+# Dependency
+.env
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Go
+teledrive.exe
+tmp_build
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
