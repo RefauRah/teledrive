@@ -384,18 +384,20 @@ export class VFSUsecase {
       let fileId = msg.id.toString();
       const caption = msg.message || '';
 
-      if (msg.media.document) {
-        const doc = msg.media.document;
+      const media: any = msg.media;
+
+      if (media.document && media.document instanceof Api.Document) {
+        const doc = media.document;
         size = Number(doc.size || 0);
         mimeType = doc.mimeType || 'application/octet-stream';
         fileId = doc.id.toString();
 
         const nameAttr = doc.attributes?.find(
           (a: any) => a instanceof Api.DocumentAttributeFilename
-        );
+        ) as Api.DocumentAttributeFilename | undefined;
         name = nameAttr?.fileName || `file_${msg.id}`;
-      } else if (msg.media.photo) {
-        const photo = msg.media.photo;
+      } else if (media.photo && media.photo instanceof Api.Photo) {
+        const photo = media.photo;
         fileId = photo.id.toString();
         mimeType = 'image/jpeg';
         name = `photo_${msg.id}.jpg`;
@@ -404,7 +406,13 @@ export class VFSUsecase {
         continue;
       }
 
-      const chatId = msg.peerId ? (msg.peerId.userId || 0).toString() : '0';
+      let chatId = '0';
+      if (msg.peerId) {
+        const peer: any = msg.peerId;
+        if (peer.userId) chatId = peer.userId.toString();
+        else if (peer.channelId) chatId = peer.channelId.toString();
+        else if (peer.chatId) chatId = peer.chatId.toString();
+      }
 
       await this.fileRepo.create({
         user_id: userId,
