@@ -5,6 +5,7 @@ import {
   Download,
   FolderInput,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import type { VFile, VFolder } from '../../domain/types';
 
@@ -12,6 +13,8 @@ interface SelectionToolbarProps {
   selectedFiles: VFile[];
   selectedFolders: VFolder[];
   totalVisibleItems: number;
+  isDownloading?: boolean;
+  isDeleting?: boolean;
   onClearSelection: () => void;
   onSelectAll: () => void;
   onBatchDownload: () => void;
@@ -23,6 +26,8 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   selectedFiles,
   selectedFolders,
   totalVisibleItems,
+  isDownloading = false,
+  isDeleting = false,
   onClearSelection,
   onSelectAll,
   onBatchDownload,
@@ -70,11 +75,20 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
         {selectedFiles.length > 0 && (
           <button
             onClick={onBatchDownload}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-bg-tertiary text-xs font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+            disabled={isDownloading || isDeleting}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-bg-tertiary text-xs font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer ${
+              isDownloading ? 'opacity-70 cursor-wait' : ''
+            }`}
             title={`Download ${selectedFiles.length} file terpilih`}
           >
-            <Download size={15} className="text-accent-warm" />
-            <span className="hidden md:inline">Download ({selectedFiles.length})</span>
+            {isDownloading ? (
+              <Loader2 size={15} className="animate-spin text-accent-warm" />
+            ) : (
+              <Download size={15} className="text-accent-warm" />
+            )}
+            <span className="hidden md:inline">
+              {isDownloading ? 'Mengunduh...' : `Download (${selectedFiles.length})`}
+            </span>
           </button>
         )}
 
@@ -82,7 +96,8 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
         {selectedFiles.length > 0 && (
           <button
             onClick={onBatchMove}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-bg-tertiary text-xs font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+            disabled={isDownloading || isDeleting}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-bg-tertiary text-xs font-semibold text-text-secondary hover:text-text-primary transition-all cursor-pointer disabled:opacity-50"
             title={`Pindahkan ${selectedFiles.length} file terpilih`}
           >
             <FolderInput size={15} className="text-accent-rose" />
@@ -93,11 +108,20 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
         {/* Action: Delete */}
         <button
           onClick={onBatchDelete}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-red-500/15 text-xs font-semibold text-red-400 hover:text-red-300 transition-all cursor-pointer"
+          disabled={isDownloading || isDeleting}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-red-500/15 text-xs font-semibold text-red-400 hover:text-red-300 transition-all cursor-pointer ${
+            isDeleting ? 'opacity-70 cursor-wait' : ''
+          }`}
           title={`Hapus ${totalSelected} item terpilih`}
         >
-          <Trash2 size={15} className="text-red-400" />
-          <span className="hidden md:inline">Hapus ({totalSelected})</span>
+          {isDeleting ? (
+            <Loader2 size={15} className="animate-spin text-red-400" />
+          ) : (
+            <Trash2 size={15} className="text-red-400" />
+          )}
+          <span className="hidden md:inline">
+            {isDeleting ? 'Menghapus...' : `Hapus (${totalSelected})`}
+          </span>
         </button>
 
         {/* Close / Dismiss */}

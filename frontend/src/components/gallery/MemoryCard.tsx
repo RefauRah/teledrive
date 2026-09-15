@@ -171,9 +171,11 @@ export const MemoryCard: React.FC<MemoryCardProps> = ({
             </div>
           )}
 
-          {/* Shimmer loading */}
+          {/* Shimmer & Spinner loading */}
           {!isLoaded && isMedia && (
-            <div className="absolute inset-0 animate-shimmer" />
+            <div className="absolute inset-0 bg-bg-tertiary flex items-center justify-center animate-pulse z-10">
+              <div className="w-7 h-7 rounded-full border-2 border-accent-warm/30 border-t-accent-warm animate-spin" />
+            </div>
           )}
 
           {/* Bottom gradient overlay for caption */}

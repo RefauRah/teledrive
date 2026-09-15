@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { Search, Upload, LogOut, FolderPlus, Sparkles } from 'lucide-react';
+import { Search, Upload, LogOut, FolderPlus, Sparkles, Loader2 } from 'lucide-react';
 
 interface TopbarProps {
   searchQuery: string;
@@ -22,6 +23,10 @@ export const Topbar: React.FC<TopbarProps> = ({
   const navigate = useNavigate();
   const initial = user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U';
 
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
+  const isBusy = isFetching > 0 || isMutating > 0;
+
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +41,14 @@ export const Topbar: React.FC<TopbarProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full glass-strong">
+    <header className="sticky top-0 z-30 w-full glass-strong relative">
+      {/* Global Activity Progress Bar */}
+      {isBusy && (
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-accent-warm via-accent-rose to-accent-purple shadow-[0_0_12px_rgba(235,160,54,0.9)] z-50 overflow-hidden">
+          <div className="h-full w-full bg-white/60 animate-pulse" />
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <div
@@ -44,7 +56,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
           <div className="w-8 h-8 rounded-xl gradient-warm flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-accent-warm/20 group-hover:shadow-accent-warm/30 transition-shadow">
-            A
+            {isBusy ? <Loader2 size={16} className="animate-spin text-white" /> : 'A'}
           </div>
           <h1 className="text-lg font-extrabold gradient-warm-text hidden sm:block tracking-wide">
             Aetheria

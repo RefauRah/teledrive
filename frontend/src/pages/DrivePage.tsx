@@ -253,15 +253,22 @@ export const MemoriesPage: React.FC = () => {
   // Batch actions
   const selectedFilesList = filteredFiles.filter((f) => selectedFileIds.has(f.id));
   const selectedFoldersList = filteredFolders.filter((f) => selectedFolderIds.has(f.id));
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   const handleBatchDownload = async () => {
-    for (const f of selectedFilesList) {
-      await downloadFile(f.id);
-      await new Promise((r) => setTimeout(r, 200));
+    try {
+      setIsBatchDownloading(true);
+      for (const f of selectedFilesList) {
+        await downloadFile(f.id);
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    } finally {
+      setIsBatchDownloading(false);
     }
   };
 
-  const handleBatchDelete = () => {
+  const handleBatchDelete = async () => {
     const total = selectedFilesList.length + selectedFoldersList.length;
     if (total === 0) return;
 
@@ -270,13 +277,17 @@ export const MemoriesPage: React.FC = () => {
         `Apakah Anda yakin ingin menghapus ${total} item yang dipilih? Item juga akan dihapus dari Telegram.`
       )
     ) {
-      for (const f of selectedFilesList) {
-        deleteFileMutation.mutate(f.id);
+      try {
+        setIsBatchDeleting(true);
+        const promises = [
+          ...selectedFilesList.map((f) => deleteFileMutation.mutateAsync(f.id)),
+          ...selectedFoldersList.map((fold) => deleteFolderMutation.mutateAsync(fold.id)),
+        ];
+        await Promise.all(promises);
+        handleClearSelection();
+      } finally {
+        setIsBatchDeleting(false);
       }
-      for (const fold of selectedFoldersList) {
-        deleteFolderMutation.mutate(fold.id);
-      }
-      handleClearSelection();
     }
   };
 
@@ -396,6 +407,8 @@ export const MemoriesPage: React.FC = () => {
         selectedFiles={selectedFilesList}
         selectedFolders={selectedFoldersList}
         totalVisibleItems={filteredFiles.length + filteredFolders.length}
+        isDownloading={isBatchDownloading}
+        isDeleting={isBatchDeleting}
         onClearSelection={handleClearSelection}
         onSelectAll={handleSelectAll}
         onBatchDownload={handleBatchDownload}
