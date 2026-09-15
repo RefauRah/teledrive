@@ -1,4 +1,4 @@
-import { TelegramClient } from 'telegram';
+import { Api, TelegramClient } from 'telegram';
 import { extractFloodWait, sleep } from './flood-wait.js';
 import type { Writable } from 'stream';
 
@@ -36,15 +36,46 @@ export class Downloader {
     }
 
     const msg = messages[0];
-    if (!msg.media || !msg.media.document) {
-      throw new Error(`Message ${messageId} does not contain a valid document`);
+    if (!msg.media) {
+      throw new Error(`Message ${messageId} does not contain valid media`);
+    }
+
+    let inputLocation: any = null;
+    let dcId: number | undefined;
+    let fileSize: any;
+
+    if (msg.media.document) {
+      const doc = msg.media.document;
+      inputLocation = new Api.InputDocumentFileLocation({
+        id: doc.id,
+        accessHash: doc.accessHash,
+        fileReference: doc.fileReference,
+        thumbSize: '',
+      });
+      dcId = doc.dcId;
+      fileSize = doc.size;
+    } else if (msg.media.photo) {
+      const photo = msg.media.photo;
+      const photoSizes = [...(photo.sizes || []), ...(photo.videoSizes || [])];
+      const largestSize = photoSizes[photoSizes.length - 1];
+      inputLocation = new Api.InputPhotoFileLocation({
+        id: photo.id,
+        accessHash: photo.accessHash,
+        fileReference: photo.fileReference,
+        thumbSize: (largestSize && 'type' in largestSize) ? largestSize.type : '',
+      });
+      dcId = photo.dcId;
+    } else {
+      throw new Error(`Message ${messageId} contains unsupported media type`);
     }
 
     // Stream download chunks
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const downloadIter = client.iterDownload({
-          file: msg.media.document,
+          file: inputLocation,
+          dcId,
+          fileSize,
           chunkSize: 512 * 1024,
           requestSize: 512 * 1024,
         });

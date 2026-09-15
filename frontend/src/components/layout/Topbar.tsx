@@ -1,18 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { Search, Upload, LogOut, FolderPlus, Sparkles } from 'lucide-react';
 
 interface TopbarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onMenuClick?: () => void;
-  isSidebarCollapsed?: boolean;
+  onUploadClick: () => void;
+  onCreateAlbumClick?: () => void;
+  onVaultClick?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
   searchQuery,
   onSearchChange,
-  onMenuClick,
+  onUploadClick,
+  onCreateAlbumClick,
+  onVaultClick,
 }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -32,85 +36,121 @@ export const Topbar: React.FC<TopbarProps> = ({
   }, []);
 
   return (
-    <header className="fixed top-0 right-0 w-full lg:w-[calc(100%-var(--sidebar-width))] h-16 bg-surface dark:bg-background flex items-center justify-between px-margin-mobile lg:px-margin-desktop ml-auto z-30 border-b border-surface-dim transition-all duration-300">
-      {/* Mobile Menu Button / Left Spacer */}
-      <div className="flex items-center lg:w-[200px]">
-        <button 
-          onClick={onMenuClick}
-          className="lg:hidden p-2 text-on-surface-variant hover:text-primary transition-colors focus:outline-none rounded-full flex items-center justify-center shrink-0"
+    <header className="sticky top-0 z-30 w-full glass-strong">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <div
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2.5 cursor-pointer group shrink-0"
         >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-      </div>
-
-      {/* Search Input Area */}
-      <div className="flex-1 max-w-xl mx-auto px-2 lg:px-8">
-        <div className="relative w-full focus-within:ring-2 focus-within:ring-primary rounded-full">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-          <input
-            type="text"
-            placeholder="Search in CloudStorage"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-surface-container-low border-none rounded-full py-2 pl-12 pr-4 font-body-sm text-body-sm focus:outline-none placeholder:text-on-surface-variant text-on-surface"
-          />
+          <div className="w-8 h-8 rounded-xl gradient-warm flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-accent-warm/20 group-hover:shadow-accent-warm/30 transition-shadow">
+            A
+          </div>
+          <h1 className="text-lg font-extrabold gradient-warm-text hidden sm:block tracking-wide">
+            Aetheria
+          </h1>
         </div>
-      </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center justify-end gap-4 lg:w-[200px]">
-        <button className="p-2 text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded-full">
-          <span className="material-symbols-outlined">help</span>
-        </button>
+        {/* Search */}
+        <div className="flex-1 max-w-lg mx-4">
+          <div className="relative group">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-warm transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari kenangan atau album..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full bg-bg-tertiary/80 border border-border-subtle rounded-xl py-2 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-warm/30 focus:bg-bg-tertiary transition-all"
+            />
+          </div>
+        </div>
 
-        <button className="p-2 text-on-surface-variant hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded-full">
-          <span className="material-symbols-outlined">notifications</span>
-        </button>
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Vault Status button */}
+          {onVaultClick && (
+            <button
+              onClick={onVaultClick}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-warm/10 hover:bg-accent-warm/20 border border-accent-warm/25 text-accent-warm text-xs font-bold transition-all cursor-pointer shadow-sm"
+              title="Aetheria Vault Status"
+            >
+              <Sparkles size={14} className="animate-pulse" />
+              <span className="hidden sm:inline">Vault</span>
+            </button>
+          )}
 
-        <div className="relative" ref={menuRef}>
-          <div 
-            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="w-8 h-8 rounded-full overflow-hidden ml-2 ring-2 ring-transparent hover:ring-primary cursor-pointer transition-all flex items-center justify-center bg-primary text-on-primary font-bold"
-            title="Profile Menu"
+          {/* Create Album button */}
+          {onCreateAlbumClick && (
+            <button
+              onClick={onCreateAlbumClick}
+              className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle hover:border-accent-warm/30 text-sm font-semibold transition-all cursor-pointer shadow-sm"
+              title="Buat Album Baru"
+            >
+              <FolderPlus size={16} className="text-accent-warm" />
+              <span>+ Album</span>
+            </button>
+          )}
+
+          {/* Upload button */}
+          <button
+            onClick={onUploadClick}
+            className="flex items-center gap-2 px-4 py-2 gradient-warm rounded-xl text-white font-medium text-sm btn-press shadow-lg shadow-accent-warm/20 hover:shadow-accent-warm/30 transition-shadow cursor-pointer"
           >
-            {user?.photoUrl ? (
-              <img src={user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              initial.toUpperCase()
+            <Upload size={16} />
+            <span className="hidden sm:inline">Upload</span>
+          </button>
+
+          {/* Profile */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-accent-warm/50 cursor-pointer transition-all flex items-center justify-center bg-bg-tertiary text-text-primary font-bold text-sm ml-1"
+            >
+              {user?.photoUrl ? (
+                <img src={user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                initial.toUpperCase()
+              )}
+            </button>
+
+            {/* Dropdown */}
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 mt-2 w-52 glass-strong rounded-xl py-2 z-50 animate-fade-in-scale shadow-2xl">
+                <div className="px-4 py-3 border-b border-border-subtle">
+                  <p className="text-sm font-bold text-text-primary truncate">
+                    {user?.firstName || user?.username || 'User'}
+                  </p>
+                  <p className="text-xs text-text-muted truncate mt-0.5">
+                    {user?.phone || 'No phone'}
+                  </p>
+                </div>
+                <div className="py-1">
+                  {onVaultClick && (
+                    <button
+                      className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onVaultClick();
+                      }}
+                    >
+                      <Sparkles size={16} className="text-accent-warm" />
+                      Aetheria Vault
+                    </button>
+                  )}
+                  <button
+                    className="w-full px-4 py-2.5 text-left text-sm text-error/80 hover:text-error hover:bg-error/5 transition-colors flex items-center gap-3 font-medium cursor-pointer"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      logout();
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Keluar
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-
-          {/* Dropdown Menu */}
-          {isProfileMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant/30 py-2 z-50 animate-fade-in">
-              <div className="px-4 py-3 border-b border-outline-variant/30">
-                <p className="text-sm font-bold text-on-surface truncate">{user?.firstName || user?.username || 'User'}</p>
-                <p className="text-xs text-on-surface-variant truncate mt-0.5">{user?.phone || 'No phone number'}</p>
-              </div>
-              <div className="py-1">
-                <button
-                  className="w-full px-4 py-2 text-left text-sm text-on-surface hover:bg-surface-container-highest transition-colors flex items-center gap-3 font-medium"
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    navigate('/settings');
-                  }}
-                >
-                  <span className="material-symbols-outlined text-[20px]">person</span>
-                  My Profile
-                </button>
-                <button
-                  className="w-full px-4 py-2 text-left text-sm text-error hover:bg-error/10 transition-colors flex items-center gap-3 font-medium"
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    logout();
-                  }}
-                >
-                  <span className="material-symbols-outlined text-[20px]">logout</span>
-                  Log Out
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </header>

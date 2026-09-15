@@ -55,6 +55,7 @@ export function createServer(
 
   api.patch('/vfs/files/:id/rename', authJwt, jsonParser, vfsHandler.handleRenameFile);
   api.patch('/vfs/files/:id/move', authJwt, jsonParser, vfsHandler.handleMoveFile);
+  api.patch('/vfs/files/:id/caption', authJwt, jsonParser, vfsHandler.handleUpdateCaption);
   api.delete('/vfs/files/:id', authJwt, vfsHandler.handleDeleteFile);
 
   api.get('/vfs/trash', authJwt, vfsHandler.handleListTrash);
@@ -64,6 +65,10 @@ export function createServer(
   api.get('/vfs/breadcrumb', authJwt, vfsHandler.handleGetBreadcrumb);
   api.get('/vfs/starred', authJwt, vfsHandler.handleListStarred);
   api.patch('/vfs/starred/:type/:id', authJwt, vfsHandler.handleToggleStar);
+
+  // Gallery: list all files & sync with Telegram Saved Messages
+  api.get('/vfs/memories', authJwt, vfsHandler.handleListAllFiles);
+  api.post('/vfs/sync', authJwt, vfsHandler.handleSync);
 
   // Upload (raw body stream, don't use jsonParser)
   api.post('/vfs/upload', authJwt, streamHandler.handleUpload);

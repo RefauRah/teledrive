@@ -62,10 +62,31 @@ export async function runTursoMigrations(client: Client, migrationsDir: string):
     const statements = upSql
       .split(';')
       .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+      .filter((s) => {
+        // Strip SQL comments
+        const clean = s
+          .split('\n')
+          .filter((line) => !line.trim().startsWith('--'))
+          .join('\n')
+          .trim();
+        return clean.length > 0;
+      });
 
     for (const stmt of statements) {
-      await client.execute(stmt);
+      try {
+        await client.execute(stmt);
+      } catch (err: any) {
+        // If column or table or index already exists, treat as idempotent
+        const msg = String(err?.message || '').toLowerCase();
+        if (
+          msg.includes('duplicate column name') ||
+          msg.includes('already exists')
+        ) {
+          console.warn(`[Migration Notice] ${stmt.slice(0, 50)}...: ${err.message}`);
+        } else {
+          throw err;
+        }
+      }
     }
 
     await client.execute({

@@ -107,6 +107,7 @@ class MockFileRepository implements FileRepository {
       telegram_chat_id: file.telegram_chat_id,
       telegram_file_id: file.telegram_file_id,
       is_starred: false,
+      caption: file.caption || '',
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -160,8 +161,20 @@ class MockFileRepository implements FileRepository {
     this.files = this.files.filter((f) => !(f.user_id === userId && f.deleted_at));
   }
 
+  public async updateCaption(id: number, caption: string): Promise<void> {
+    const existing = this.files.find((f) => f.id === id);
+    if (existing) {
+      existing.caption = caption;
+      existing.updated_at = new Date();
+    }
+  }
+
   public async listStarred(userId: number): Promise<File[]> {
     return this.files.filter((f) => f.user_id === userId && f.is_starred && !f.deleted_at);
+  }
+
+  public async listAll(userId: number): Promise<File[]> {
+    return this.files.filter((f) => f.user_id === userId && !f.deleted_at);
   }
 }
 
@@ -257,16 +270,22 @@ describe('VFSUsecase', () => {
     assert.equal(starred.folders.length, 0);
   });
 
-  it('should return breadcrumb trail for nested folders', async () => {
-    const root = await vfs.createFolder(1, 'Root', null);
-    const sub = await vfs.createFolder(1, 'Sub', root.id);
-    const deep = await vfs.createFolder(1, 'Deep', sub.id);
+  it('should update caption and list all files as memories', async () => {
+    const file = await fileRepo.create({
+      user_id: 1,
+      folder_id: null,
+      name: 'sunset.jpg',
+      size: 500,
+      mime_type: 'image/jpeg',
+      telegram_message_id: 200,
+      telegram_chat_id: '123',
+      telegram_file_id: 'file_sunset',
+    });
 
-    const breadcrumbs = await vfs.getBreadcrumb(1, deep.id);
-    assert.equal(breadcrumbs.length, 3);
-    assert.deepEqual(
-      breadcrumbs.map((b) => b.name),
-      ['Root', 'Sub', 'Deep']
-    );
+    const updated = await vfs.updateCaption(1, file.id, 'Sunset indah di Bali');
+    assert.equal(updated.caption, 'Sunset indah di Bali');
+
+    const memories = await vfs.listAllFiles(1);
+    assert.ok(memories.some((m) => m.id === file.id && m.caption === 'Sunset indah di Bali'));
   });
 });

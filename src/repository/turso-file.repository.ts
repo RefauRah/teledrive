@@ -17,11 +17,12 @@ export class TursoFileRepository implements FileRepository {
     telegram_message_id: number;
     telegram_chat_id: string;
     telegram_file_id: string;
+    caption?: string;
   }): Promise<File> {
     const query = `
-      INSERT INTO files (user_id, folder_id, name, size, mime_type, telegram_message_id, telegram_chat_id, telegram_file_id, is_starred, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id, user_id, folder_id, name, size, mime_type, telegram_message_id, telegram_chat_id, telegram_file_id, is_starred, deleted_at, created_at, updated_at
+      INSERT INTO files (user_id, folder_id, name, size, mime_type, telegram_message_id, telegram_chat_id, telegram_file_id, caption, is_starred, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id, user_id, folder_id, name, size, mime_type, telegram_message_id, telegram_chat_id, telegram_file_id, caption, is_starred, deleted_at, created_at, updated_at
     `;
     const res = await this.db.execute({
       sql: query,
@@ -34,6 +35,7 @@ export class TursoFileRepository implements FileRepository {
         file.telegram_message_id,
         file.telegram_chat_id,
         file.telegram_file_id,
+        file.caption || '',
       ],
     });
     return this.mapRow(res.rows[0]);
@@ -53,14 +55,27 @@ export class TursoFileRepository implements FileRepository {
     let args: any[];
 
     if (folderId === null) {
-      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id IS NULL AND deleted_at IS NULL ORDER BY name';
+      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id IS NULL AND deleted_at IS NULL ORDER BY created_at DESC';
       args = [userId];
     } else {
-      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL ORDER BY name';
+      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL ORDER BY created_at DESC';
       args = [userId, folderId];
     }
 
     const res = await this.db.execute({ sql, args });
+    return res.rows.map((r) => this.mapRow(r));
+  }
+
+  public async listAll(userId: number): Promise<File[]> {
+    const sql = `
+      SELECT f.* FROM files f
+      LEFT JOIN folders fold ON f.folder_id = fold.id
+      WHERE f.user_id = ?
+        AND f.deleted_at IS NULL
+        AND (f.folder_id IS NULL OR fold.deleted_at IS NULL)
+      ORDER BY f.created_at DESC
+    `;
+    const res = await this.db.execute({ sql, args: [userId] });
     return res.rows.map((r) => this.mapRow(r));
   }
 
@@ -78,6 +93,13 @@ export class TursoFileRepository implements FileRepository {
         file.is_starred ? 1 : 0,
         file.id,
       ],
+    });
+  }
+
+  public async updateCaption(id: number, caption: string): Promise<void> {
+    await this.db.execute({
+      sql: 'UPDATE files SET caption = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      args: [caption, id],
     });
   }
 
@@ -116,7 +138,7 @@ export class TursoFileRepository implements FileRepository {
   }
 
   public async listStarred(userId: number): Promise<File[]> {
-    const query = 'SELECT * FROM files WHERE user_id = ? AND is_starred = 1 AND deleted_at IS NULL ORDER BY name';
+    const query = 'SELECT * FROM files WHERE user_id = ? AND is_starred = 1 AND deleted_at IS NULL ORDER BY created_at DESC';
     const res = await this.db.execute({ sql: query, args: [userId] });
     return res.rows.map((r) => this.mapRow(r));
   }
@@ -132,6 +154,7 @@ export class TursoFileRepository implements FileRepository {
       telegram_message_id: Number(row.telegram_message_id),
       telegram_chat_id: String(row.telegram_chat_id),
       telegram_file_id: String(row.telegram_file_id || ''),
+      caption: String(row.caption || ''),
       is_starred: Boolean(row.is_starred),
       deleted_at: row.deleted_at ? new Date(String(row.deleted_at)) : null,
       created_at: new Date(String(row.created_at)),

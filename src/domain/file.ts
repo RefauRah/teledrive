@@ -8,6 +8,7 @@ export interface File {
   telegram_message_id: number;
   telegram_chat_id: string; // BIGINT as string in JS
   telegram_file_id: string;
+  caption: string;
   is_starred: boolean;
   deleted_at?: Date | null;
   created_at: Date;
@@ -24,14 +25,17 @@ export interface FileRepository {
     telegram_message_id: number;
     telegram_chat_id: string;
     telegram_file_id: string;
+    caption?: string;
   }): Promise<File>;
   getById(id: number): Promise<File | null>;
   listByFolder(userId: number, folderId: number | null): Promise<File[]>;
   update(file: Pick<File, 'id' | 'name' | 'folder_id' | 'is_starred'>): Promise<void>;
+  updateCaption(id: number, caption: string): Promise<void>;
   softDelete(id: number): Promise<void>;
   restore(id: number): Promise<void>;
   listTrashed(userId: number): Promise<File[]>;
   permanentDelete(id: number): Promise<void>;
   permanentDeleteAllTrashed(userId: number): Promise<void>;
   listStarred(userId: number): Promise<File[]>;
+  listAll(userId: number): Promise<File[]>;
 }

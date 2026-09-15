@@ -176,6 +176,16 @@ export class VFSUsecase {
       throw new Error('Folder does not belong to user');
     }
 
+    try {
+      const messageIds = await this.collectFolderFileIds(userId, folderId);
+      if (messageIds.length > 0) {
+        const client = await this.clientPool.getClient(userId);
+        await client.deleteMessages('me', messageIds, { revoke: true });
+      }
+    } catch (tgErr) {
+      console.warn(`Failed to delete messages for folder ${folderId} from Telegram:`, tgErr);
+    }
+
     await this.folderRepo.softDelete(folderId);
   }
 
@@ -188,7 +198,35 @@ export class VFSUsecase {
       throw new Error('File does not belong to user');
     }
 
+    // Delete message from Telegram Saved Messages
+    if (file.telegram_message_id && file.telegram_message_id > 0) {
+      try {
+        const client = await this.clientPool.getClient(userId);
+        await client.deleteMessages('me', [file.telegram_message_id], { revoke: true });
+      } catch (tgErr) {
+        console.warn(`Failed to delete message ${file.telegram_message_id} from Telegram:`, tgErr);
+      }
+    }
+
     await this.fileRepo.softDelete(fileId);
+  }
+
+  private async collectFolderFileIds(userId: number, folderId: number): Promise<number[]> {
+    let messageIds: number[] = [];
+    const directFiles = await this.fileRepo.listByFolder(userId, folderId);
+    for (const f of directFiles) {
+      if (f.telegram_message_id > 0) messageIds.push(f.telegram_message_id);
+      await this.fileRepo.softDelete(f.id);
+    }
+
+    const childFolders = await this.folderRepo.listByParent(userId, folderId);
+    for (const child of childFolders) {
+      const childMsgIds = await this.collectFolderFileIds(userId, child.id);
+      messageIds = messageIds.concat(childMsgIds);
+      await this.folderRepo.softDelete(child.id);
+    }
+
+    return messageIds;
   }
 
   public async listTrash(userId: number): Promise<DirectoryListing> {
@@ -309,5 +347,83 @@ export class VFSUsecase {
     } else {
       throw new Error(`Invalid item type: ${itemType}`);
     }
+  }
+
+  public async updateCaption(userId: number, fileId: number, caption: string): Promise<File> {
+    const file = await this.fileRepo.getById(fileId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+    if (file.user_id !== userId) {
+      throw new Error('File does not belong to user');
+    }
+
+    await this.fileRepo.updateCaption(fileId, caption);
+    file.caption = caption;
+    return file;
+  }
+
+  public async listAllFiles(userId: number): Promise<File[]> {
+    return await this.fileRepo.listAll(userId);
+  }
+
+  public async syncWithTelegram(userId: number): Promise<{ added: number; synced: number }> {
+    const client = await this.clientPool.getClient(userId);
+    const messages = await client.getMessages('me', { limit: 50 });
+    const existingFiles = await this.fileRepo.listAll(userId);
+    const existingMsgIds = new Set(existingFiles.map((f) => f.telegram_message_id));
+
+    let added = 0;
+
+    for (const msg of messages) {
+      if (!msg || !msg.media || existingMsgIds.has(msg.id)) continue;
+
+      let name = '';
+      let size = 0;
+      let mimeType = 'application/octet-stream';
+      let fileId = msg.id.toString();
+      const caption = msg.message || '';
+
+      if (msg.media.document) {
+        const doc = msg.media.document;
+        size = Number(doc.size || 0);
+        mimeType = doc.mimeType || 'application/octet-stream';
+        fileId = doc.id.toString();
+
+        const nameAttr = doc.attributes?.find(
+          (a: any) => a instanceof Api.DocumentAttributeFilename
+        );
+        name = nameAttr?.fileName || `file_${msg.id}`;
+      } else if (msg.media.photo) {
+        const photo = msg.media.photo;
+        fileId = photo.id.toString();
+        mimeType = 'image/jpeg';
+        name = `photo_${msg.id}.jpg`;
+        size = 1024 * 100;
+      } else {
+        continue;
+      }
+
+      const chatId = msg.peerId ? (msg.peerId.userId || 0).toString() : '0';
+
+      await this.fileRepo.create({
+        user_id: userId,
+        folder_id: null,
+        name,
+        size,
+        mime_type: mimeType,
+        telegram_message_id: msg.id,
+        telegram_chat_id: chatId,
+        telegram_file_id: fileId,
+        caption,
+      });
+
+      added++;
+    }
+
+    return {
+      added,
+      synced: existingFiles.length + added,
+    };
   }
 }

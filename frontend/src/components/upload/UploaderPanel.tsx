@@ -20,7 +20,6 @@ export const UploaderPanel: React.FC = () => {
 
   const uploadList = Array.from(uploads.values());
 
-  // Auto-expand when a new upload starts
   useEffect(() => {
     const hasUploading = uploadList.some(u => u.status === 'uploading' || u.status === 'pending');
     if (hasUploading && isCollapsed) {
@@ -28,7 +27,6 @@ export const UploaderPanel: React.FC = () => {
     }
   }, [uploads, isCollapsed]);
 
-  // Auto-clear completed uploads after 4 seconds
   useEffect(() => {
     const successCount = uploadList.filter(u => u.status === 'success').length;
     const uploadingCount = uploadList.filter(u => u.status === 'uploading' || u.status === 'pending').length;
@@ -42,19 +40,14 @@ export const UploaderPanel: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [uploads, clearCompleted]);
 
-  // Upload queue worker loop
   useEffect(() => {
-    // 1. Check if there's already an active upload running
     const activeUpload = uploadList.find(u => u.status === 'uploading');
     if (activeUpload) return;
 
-    // 2. Find the first pending item in the queue
     const pendingItem = uploadList.find(u => u.status === 'pending');
     if (!pendingItem) return;
 
-    // 3. Process the pending upload
     const runUpload = async () => {
-      // Mark as uploading in Zustand store
       updateStatus(pendingItem.id, 'uploading');
       
       try {
@@ -67,16 +60,12 @@ export const UploaderPanel: React.FC = () => {
           pendingItem.abortController.signal
         );
 
-        // Mark as success
         updateStatus(pendingItem.id, 'success');
-
-        // Invalidate directory cache to display the newly uploaded file in the UI
-        queryClient.invalidateQueries({ queryKey: ['directory', pendingItem.folderId] });
+        queryClient.invalidateQueries({ queryKey: ['directory'] });
+        queryClient.invalidateQueries({ queryKey: ['memories'] });
+        queryClient.refetchQueries({ queryKey: ['directory'] });
       } catch (err: any) {
-        if (err.name === 'CanceledError' || err.name === 'AbortError') {
-          // Ignore cancellation errors
-          return;
-        }
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         console.error('File upload failed:', err);
         updateStatus(pendingItem.id, 'failed', err.response?.data?.error || err.message || 'Upload failed');
       }
@@ -92,39 +81,39 @@ export const UploaderPanel: React.FC = () => {
   const failedCount = uploadList.filter(u => u.status === 'failed').length;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 w-96 rounded-xl border border-border-glass bg-bg-secondary/90 backdrop-blur-md shadow-2xl overflow-hidden flex flex-col transition-all duration-300">
+    <div className="fixed bottom-6 right-6 z-40 w-96 rounded-2xl glass-strong shadow-2xl overflow-hidden flex flex-col transition-all duration-300">
       {/* Header */}
-      <div className="bg-bg-tertiary/80 px-4 py-3 border-b border-border-glass flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between bg-bg-elevated/50">
         <div className="flex items-center gap-2 text-text-primary">
-          <Upload size={16} className="text-accent-primary" />
+          <Upload size={16} className="text-accent-warm" />
           <span className="font-bold text-sm">
             {uploadingCount > 0
-              ? `Uploading ${uploadingCount} file${uploadingCount > 1 ? 's' : ''}...`
-              : 'Uploads Completed'}
+              ? `Mengupload ${uploadingCount} file...`
+              : 'Upload selesai'}
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-text-secondary">
           {successCount > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-success/15 text-success font-semibold">
-              {successCount} Success
+              {successCount} Berhasil
             </span>
           )}
           {failedCount > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-error/15 text-error font-semibold">
-              {failedCount} Failed
+              {failedCount} Gagal
             </span>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 rounded hover:bg-bg-secondary hover:text-text-primary transition-colors ml-1"
+            className="p-1 rounded hover:bg-bg-tertiary hover:text-text-primary transition-colors ml-1"
           >
             {isCollapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
           {uploadingCount === 0 && (
             <button
               onClick={clearCompleted}
-              className="p-1 rounded hover:bg-bg-secondary hover:text-text-primary transition-colors"
-              title="Clear Completed"
+              className="p-1 rounded hover:bg-bg-tertiary hover:text-text-primary transition-colors"
+              title="Tutup"
             >
               <X size={16} />
             </button>
@@ -134,32 +123,31 @@ export const UploaderPanel: React.FC = () => {
 
       {/* Upload Item List */}
       {!isCollapsed && (
-        <div className="max-h-72 overflow-y-auto no-scrollbar p-2 flex flex-col gap-1.5 bg-bg-secondary/50">
+        <div className="max-h-72 overflow-y-auto no-scrollbar p-2 flex flex-col gap-1.5">
           {uploadList.map((upload) => (
             <div
               key={upload.id}
-              className="p-2.5 rounded-lg bg-bg-tertiary/40 border border-border-glass/40 flex flex-col gap-2 relative group hover:border-text-muted/30 transition-all"
+              className="p-2.5 rounded-xl bg-bg-tertiary/40 border border-border-subtle flex flex-col gap-2 relative group hover:border-border-medium transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-text-primary truncate" title={upload.file.name}>
                     {upload.file.name}
                   </p>
-                  <p className="text-xs text-text-secondary mt-0.5">
+                  <p className="text-xs text-text-muted mt-0.5">
                     {formatBytes(upload.file.size)}
                   </p>
                 </div>
 
-                {/* Status indicator */}
                 <div className="shrink-0 flex items-center gap-1.5 mt-0.5">
                   {upload.status === 'uploading' && (
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-accent-primary font-medium">{upload.progress}%</span>
-                      <Loader2 size={16} className="text-accent-primary animate-spin" />
+                      <span className="text-xs text-accent-warm font-medium">{upload.progress}%</span>
+                      <Loader2 size={16} className="text-accent-warm animate-spin" />
                     </div>
                   )}
                   {upload.status === 'pending' && (
-                    <span className="text-xs text-text-secondary">Waiting...</span>
+                    <span className="text-xs text-text-muted">Menunggu...</span>
                   )}
                   {upload.status === 'success' && (
                     <CheckCircle2 size={16} className="text-success" />
@@ -168,8 +156,8 @@ export const UploaderPanel: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => retryFile(upload.id)}
-                        className="p-1 rounded hover:bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors"
-                        title="Retry Upload"
+                        className="p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-text-primary transition-colors"
+                        title="Coba lagi"
                       >
                         <RefreshCw size={12} />
                       </button>
@@ -181,8 +169,8 @@ export const UploaderPanel: React.FC = () => {
                   {upload.status !== 'success' && (
                     <button
                       onClick={() => removeFile(upload.id)}
-                      className="p-1 rounded hover:bg-bg-tertiary text-text-secondary hover:text-error transition-colors"
-                      title="Cancel Upload"
+                      className="p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-error transition-colors"
+                      title="Batalkan"
                     >
                       <X size={14} />
                     </button>
@@ -192,9 +180,9 @@ export const UploaderPanel: React.FC = () => {
 
               {/* Progress bar */}
               {(upload.status === 'uploading' || upload.status === 'pending') && (
-                <div className="w-full h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-bg-primary rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-accent-primary to-accent-secondary rounded-full transition-all duration-300 ease-out"
+                    className="h-full gradient-warm rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${upload.progress}%` }}
                   />
                 </div>

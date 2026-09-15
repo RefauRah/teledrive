@@ -171,6 +171,15 @@ describe('Turso Repositories & Migrations', () => {
     assert.equal(starred.length, 1);
     assert.equal(starred[0].name, 'document_renamed.pdf');
 
+    // Caption & List All
+    await fileRepo.updateCaption(file.id, 'Liburan ke pantai bersama keluarga');
+    const withCaption = await fileRepo.getById(file.id);
+    assert.equal(withCaption?.caption, 'Liburan ke pantai bersama keluarga');
+
+    const allFiles = await fileRepo.listAll(1);
+    assert.equal(allFiles.length, 1);
+    assert.equal(allFiles[0].caption, 'Liburan ke pantai bersama keluarga');
+
     // Soft delete & empty trash
     await fileRepo.softDelete(file.id);
     const trashed = await fileRepo.listTrashed(1);

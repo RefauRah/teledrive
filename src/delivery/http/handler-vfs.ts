@@ -264,4 +264,47 @@ export class VFSHandler {
       res.status(400).json({ error: err.message || 'Failed to update starred status' });
     }
   };
+
+  public handleUpdateCaption = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const fileId = parseInt(req.params.id, 10);
+      const { caption } = req.body || {};
+
+      if (isNaN(fileId)) {
+        res.status(400).json({ error: 'invalid file id' });
+        return;
+      }
+
+      if (typeof caption !== 'string') {
+        res.status(400).json({ error: 'caption must be a string' });
+        return;
+      }
+
+      const file = await this.vfsUsecase.updateCaption(userId, fileId, caption);
+      res.status(200).json(file);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Failed to update caption' });
+    }
+  };
+
+  public handleListAllFiles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const files = await this.vfsUsecase.listAllFiles(userId);
+      res.status(200).json({ files });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to list files' });
+    }
+  };
+
+  public handleSync = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const result = await this.vfsUsecase.syncWithTelegram(userId);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to sync with Telegram' });
+    }
+  };
 }

@@ -4,7 +4,7 @@ import type { UploadQueueItem, UploadStatus } from '../domain/types';
 interface UploadState {
   uploads: Map<string, UploadQueueItem>;
   isExpanded: boolean;
-  addFile: (file: File, folderId: string | null) => string;
+  addFile: (file: File, folderId: string | null, caption?: string) => string;
   updateProgress: (id: string, progress: number) => void;
   updateStatus: (id: string, status: UploadStatus, error?: string) => void;
   removeFile: (id: string) => void;
@@ -19,12 +19,13 @@ export const useUploadStore = create<UploadState>((set, get) => ({
   uploads: new Map(),
   isExpanded: false,
 
-  addFile: (file: File, folderId: string | null) => {
+  addFile: (file: File, folderId: string | null, caption: string = '') => {
     const id = `upload_${Date.now()}_${++uploadCounter}`;
     const item: UploadQueueItem = {
       id,
       file,
       folderId,
+      caption,
       progress: 0,
       status: 'pending',
       abortController: new AbortController(),

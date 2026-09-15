@@ -21,25 +21,26 @@ export interface VFolder {
   updatedAt: string;
 }
 
+export interface BreadcrumbItem {
+  id: string | null;
+  name: string;
+}
+
 export interface VFile {
   id: string;
   name: string;
   folderId: string | null;
   size: number;
   mimeType: string;
+  caption: string;
   isStarred?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface DirectoryContents {
+export interface DirectoryContent {
   folders: VFolder[];
   files: VFile[];
-}
-
-export interface BreadcrumbItem {
-  id: string | null;
-  name: string;
 }
 
 export type UploadStatus = 'pending' | 'uploading' | 'success' | 'failed';
@@ -48,17 +49,9 @@ export interface UploadQueueItem {
   id: string;
   file: File;
   folderId: string | null;
+  caption: string;
   progress: number;
   status: UploadStatus;
   error?: string;
   abortController: AbortController;
-}
-
-export type ViewMode = 'grid' | 'list';
-
-export interface ContextMenuState {
-  x: number;
-  y: number;
-  type: 'file' | 'folder';
-  item: VFile | VFolder;
 }

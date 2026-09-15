@@ -1,102 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
-import Sidebar from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
-import { FileBrowser } from '../components/explorer/FileBrowser';
-import { FileViewerModal } from '../components/explorer/FileViewerModal';
+import { MemoryGrid } from '../components/gallery/MemoryGrid';
+import { LightboxModal } from '../components/gallery/LightboxModal';
+import { CreateAlbumModal } from '../components/gallery/CreateAlbumModal';
+import { RenameAlbumModal } from '../components/gallery/RenameAlbumModal';
+import { RenameFileModal } from '../components/gallery/RenameFileModal';
+import { EditCaptionModal } from '../components/gallery/EditCaptionModal';
+import { MoveFileModal } from '../components/gallery/MoveFileModal';
+import { VaultModal } from '../components/gallery/VaultModal';
+import { SelectionToolbar } from '../components/gallery/SelectionToolbar';
+import { ContextMenu, type ContextMenuState } from '../components/gallery/ContextMenu';
 import { UploaderPanel } from '../components/upload/UploaderPanel';
-import { SettingsView } from './SettingsView';
 import {
-  useFiles,
-  useBreadcrumb,
+  useDirectory,
+  useBreadcrumbs,
+  useMemories,
   useCreateFolder,
   useRenameFolder,
-  useRenameFile,
-  useMoveFolder,
-  useMoveFile,
   useDeleteFolder,
+  useMoveFile,
+  useUpdateCaption,
+  useRenameFile,
   useDeleteFile,
 } from '../hooks/useFiles';
+import { downloadFile } from '../services/api';
 import { useUploadStore } from '../stores/useUploadStore';
-import { VFile, VFolder, ViewMode } from '../domain/types';
-import {
-  listTrash,
-  deleteFolder,
-  deleteFile,
-  restoreItem,
-  emptyTrash,
-  listDirectory,
-  downloadFile,
-  listStarred,
-  toggleStar,
-} from '../services/api';
-import { Folder, Loader2, FolderPlus, X } from 'lucide-react';
+import type { VFile, VFolder } from '../domain/types';
 
-export const DrivePage: React.FC = () => {
-  const { isAuthenticated, initialize } = useAuthStore();
+export const MemoriesPage: React.FC = () => {
+  const { user, isAuthenticated, initialize } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Dynamic routing based view states
-  const getFolderIdFromPath = (path: string): string | null => {
-    if (path.startsWith('/folder/')) {
-      return path.substring('/folder/'.length);
-    }
-    return null;
-  };
+  // Current folder ID from URL query params or null for root
+  const currentFolderId = searchParams.get('folder_id') || null;
 
-  const getViewFromPath = (path: string): 'drive' | 'recent' | 'trash' | 'settings' | 'starred' => {
-    if (path === '/settings') return 'settings';
-    if (path === '/trash') return 'trash';
-    if (path === '/recent') return 'recent';
-    if (path === '/starred') return 'starred';
-    return 'drive';
-  };
-
-  const currentFolderId = getFolderIdFromPath(location.pathname);
-  const currentView = getViewFromPath(location.pathname);
-
-  // UI state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewingFile, setViewingFile] = useState<VFile | null>(null);
+  const [lightboxFile, setLightboxFile] = useState<VFile | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Dialog / Modal states
-  const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  
-  const [renameItem, setRenameItem] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
-  const [renameName, setRenameName] = useState('');
+  // Selection states
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [movingFiles, setMovingFiles] = useState<VFile[]>([]);
 
-  const [moveItem, setMoveItem] = useState<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
-  const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
-  const [allFoldersList, setAllFoldersList] = useState<VFolder[]>([]);
-  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  // Context Menu state
+  const [contextMenuState, setContextMenuState] = useState<ContextMenuState | null>(null);
 
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText: string;
-    isDestructive: boolean;
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    confirmText: '',
-    isDestructive: true,
-    onConfirm: () => {},
-  });
+  // Modals state
+  const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
+  const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
+  const [renamingFolder, setRenamingFolder] = useState<VFolder | null>(null);
+  const [renamingFile, setRenamingFile] = useState<VFile | null>(null);
+  const [editingCaptionFile, setEditingCaptionFile] = useState<VFile | null>(null);
+  const [movingFile, setMovingFile] = useState<VFile | null>(null);
 
-  // Zustand upload queue triggers
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileToQueue = useUploadStore((state) => state.addFile);
 
-  // Run initial session check
+  // React Query Hooks
+  const { data: directoryContent, isLoading, refetch } = useDirectory(currentFolderId);
+  const { data: breadcrumbs = [] } = useBreadcrumbs(currentFolderId);
+  const { data: allMemories = [] } = useMemories();
+
+  const createFolderMutation = useCreateFolder();
+  const renameFolderMutation = useRenameFolder();
+  const deleteFolderMutation = useDeleteFolder();
+  const renameFileMutation = useRenameFile();
+  const moveFileMutation = useMoveFile();
+  const updateCaptionMutation = useUpdateCaption();
+  const deleteFileMutation = useDeleteFile();
+
+  const folders = directoryContent?.folders || [];
+  const files = directoryContent?.files || [];
+
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -107,679 +86,431 @@ export const DrivePage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Fetch drive files & breadcrumbs
-  const { data: driveData, isLoading: isLoadingFiles, refetch } = useFiles(currentFolderId);
-  const { data: breadcrumbs = [] } = useBreadcrumb(currentFolderId);
+  if (!isAuthenticated) return null;
 
-  // Mutation hooks
-  const createFolderMutation = useCreateFolder(currentFolderId);
-  const renameFolderMutation = useRenameFolder(currentFolderId);
-  const renameFileMutation = useRenameFile(currentFolderId);
-  const moveFolderMutation = useMoveFolder(currentFolderId);
-  const moveFileMutation = useMoveFile(currentFolderId);
-  const deleteFolderMutation = useDeleteFolder(currentFolderId);
-  const deleteFileMutation = useDeleteFile(currentFolderId);
-
-  // Handle switching views (Drive vs Trash)
-  const [trashData, setTrashData] = useState<{ folders: VFolder[]; files: VFile[] }>({ folders: [], files: [] });
-  const [isLoadingTrash, setIsLoadingTrash] = useState(false);
-
-  const [starredData, setStarredData] = useState<{ folders: VFolder[]; files: VFile[] }>({ folders: [], files: [] });
-  const [isLoadingStarred, setIsLoadingStarred] = useState(false);
-
-  const fetchTrash = async () => {
-    setIsLoadingTrash(true);
-    try {
-      const data = await listTrash();
-      setTrashData(data);
-    } catch (err) {
-      console.error('Failed to fetch trash:', err);
-    } finally {
-      setIsLoadingTrash(false);
-    }
-  };
-
-  const fetchStarred = async () => {
-    setIsLoadingStarred(true);
-    try {
-      const data = await listStarred();
-      setStarredData(data);
-    } catch (err) {
-      console.error('Failed to fetch starred:', err);
-    } finally {
-      setIsLoadingStarred(false);
-    }
-  };
-
-  useEffect(() => {
-    if (currentView === 'trash') {
-      fetchTrash();
-    } else if (currentView === 'starred') {
-      fetchStarred();
-    }
-  }, [currentView]);
-
-  const handleToggleStar = async (type: 'file' | 'folder', id: string) => {
-    try {
-      await toggleStar(type, id);
-      refetch();
-      if (currentView === 'starred') fetchStarred();
-    } catch (err) {
-      console.error('Failed to toggle star:', err);
-    }
-  };
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  // Handle Folder Creation
-  const handleCreateFolder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFolderName.trim()) return;
-    try {
-      await createFolderMutation.mutateAsync(newFolderName);
-      setNewFolderName('');
-      setIsNewFolderOpen(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Handle Rename Item
-  const handleRename = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!renameItem || !renameName.trim()) return;
-    try {
-      if (renameItem.type === 'folder') {
-        await renameFolderMutation.mutateAsync({ id: renameItem.id, name: renameName });
-      } else {
-        await renameFileMutation.mutateAsync({ id: renameItem.id, name: renameName });
-      }
-      setRenameItem(null);
-      setRenameName('');
-      if (currentView === 'trash') fetchTrash();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Handle Move Item Setup
-  const openMoveModal = async (type: 'file' | 'folder', item: VFile | VFolder) => {
-    setMoveItem({ type, id: item.id, name: item.name });
-    setTargetFolderId(null);
-    setIsLoadingFolders(true);
-    try {
-      const data = await listDirectory();
-      setAllFoldersList(data.folders.filter((f: VFolder) => f.id !== item.id));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingFolders(false);
-    }
-  };
-
-  const handleMove = async () => {
-    if (!moveItem) return;
-    try {
-      if (moveItem.type === 'folder') {
-        await moveFolderMutation.mutateAsync({ id: moveItem.id, parentId: targetFolderId });
-      } else {
-        await moveFileMutation.mutateAsync({ id: moveItem.id, parentId: targetFolderId });
-      }
-      setMoveItem(null);
-      setTargetFolderId(null);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Handle Delete (Move to Trash / Empty Trash / Permanent Delete)
-  const handleDelete = async (type: 'file' | 'folder', item: VFile | VFolder) => {
-    if (currentView === 'trash') {
-      // Permanent delete
-      setConfirmModal({
-        isOpen: true,
-        title: 'Delete Permanently',
-        message: `Permanently delete "${item.name}"? This cannot be undone.`,
-        confirmText: 'Delete',
-        isDestructive: true,
-        onConfirm: async () => {
-          try {
-            if (type === 'folder') {
-              await deleteFolder(item.id);
-            } else {
-              await deleteFile(item.id);
-            }
-            fetchTrash();
-            setConfirmModal(prev => ({ ...prev, isOpen: false }));
-          } catch (err) {
-            console.error(err);
-          }
-        }
-      });
+  // Folder navigation
+  const handleFolderNavigate = (folderId: string | null) => {
+    if (folderId) {
+      setSearchParams({ folder_id: folderId });
     } else {
-      // Soft delete
-      try {
-        if (type === 'folder') {
-          await deleteFolderMutation.mutateAsync(item.id);
-        } else {
-          await deleteFileMutation.mutateAsync(item.id);
-        }
-      } catch (err) {
-        console.error(err);
-      }
+      setSearchParams({});
     }
+    setSearchQuery('');
   };
 
-  const handleDeleteMultiple = async (items: { type: 'file' | 'folder', item: VFile | VFolder }[]) => {
-    if (items.length === 0) return;
-    
-    if (currentView === 'trash') {
-      setConfirmModal({
-        isOpen: true,
-        title: 'Delete Permanently',
-        message: `Permanently delete ${items.length} items? This cannot be undone.`,
-        confirmText: 'Delete All',
-        isDestructive: true,
-        onConfirm: async () => {
-          try {
-            await Promise.all(items.map(({ type, item }) => 
-              type === 'folder' ? deleteFolder(item.id) : deleteFile(item.id)
-            ));
-            fetchTrash();
-            setConfirmModal(prev => ({ ...prev, isOpen: false }));
-          } catch (err) {
-            console.error(err);
-          }
-        }
-      });
-    } else {
-      try {
-        await Promise.all(items.map(({ type, item }) => 
-          type === 'folder' ? deleteFolderMutation.mutateAsync(item.id) : deleteFileMutation.mutateAsync(item.id)
-        ));
-      } catch (err) {
-        console.error(err);
-      }
-    }
-  };
+  // Clear selection when navigating folder
+  useEffect(() => {
+    setSelectedFileIds(new Set());
+    setSelectedFolderIds(new Set());
+  }, [currentFolderId]);
 
-  // Handle Restore Item from Trash
-  const handleRestore = async (type: 'file' | 'folder', item: VFile | VFolder) => {
-    try {
-      await restoreItem(type, item.id);
-      fetchTrash();
-      refetch();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Handle Empty Trash
-  const handleEmptyTrash = async () => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Empty Trash',
-      message: 'Permanently delete all items in trash? This will delete files from Telegram messages as well.',
-      confirmText: 'Empty Trash',
-      isDestructive: true,
-      onConfirm: async () => {
-        try {
-          await emptyTrash();
-          fetchTrash();
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        } catch (err) {
-          console.error(err);
-        }
-      }
+  // Upload into current folder
+  const handleUpload = (uploadedFiles: File[], targetFolderId: string | null = currentFolderId) => {
+    uploadedFiles.forEach((file) => {
+      addFileToQueue(file, targetFolderId);
     });
   };
 
-  // Handle File Download
-  const handleFileDownload = async (file: VFile) => {
-    try {
-      await downloadFile(file.id);
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert('Failed to download file. Please try again.');
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleUpload(Array.from(e.target.files), currentFolderId);
+      e.target.value = '';
     }
   };
 
-  // Handle Drag & Drop Upload
-  const handleUpload = (files: File[]) => {
-    files.forEach((file) => {
-      addFileToQueue(file, currentFolderId);
+  const filteredFolders = searchQuery
+    ? folders.filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : folders;
+
+  const filteredFiles = searchQuery
+    ? files.filter((f) =>
+        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.caption?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : files;
+
+  // Single-click select handlers
+  const handleFileSelect = (_e: React.MouseEvent, file: VFile) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(file.id)) next.delete(file.id);
+      else next.add(file.id);
+      return next;
     });
   };
 
-  // Filter items by search query
-  // Filter items by search query
-  const folders = 
-    currentView === 'trash' ? trashData.folders :
-    currentView === 'starred' ? starredData.folders :
-    (driveData?.folders || []);
+  const handleFolderSelect = (_e: React.MouseEvent, folder: VFolder) => {
+    setSelectedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folder.id)) next.delete(folder.id);
+      else next.add(folder.id);
+      return next;
+    });
+  };
 
-  const files = 
-    currentView === 'trash' ? trashData.files :
-    currentView === 'starred' ? starredData.files :
-    (driveData?.files || []);
+  const handleSelectAll = useCallback(() => {
+    setSelectedFileIds(new Set(filteredFiles.map((f) => f.id)));
+    setSelectedFolderIds(new Set(filteredFolders.map((f) => f.id)));
+  }, [filteredFiles, filteredFolders]);
 
-  const filteredFolders = folders.filter((f: VFolder) =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const filteredFiles = files.filter((f: VFile) =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleClearSelection = useCallback(() => {
+    setSelectedFileIds(new Set());
+    setSelectedFolderIds(new Set());
+  }, []);
+
+  // Keyboard shortcut: Escape to clear selection, Cmd/Ctrl+A to select all
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement as HTMLElement)?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+      if (e.key === 'Escape') {
+        handleClearSelection();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSelectAll();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSelectAll, handleClearSelection]);
+
+  // Double-click preview handler (2x clicks)
+  const handleFileDoubleClick = (file: VFile, index: number) => {
+    setLightboxFile(file);
+    setLightboxIndex(index);
+  };
+
+  // Lightbox handlers
+  const handleFileClick = (file: VFile, _index: number) => {
+    // If multiple items are already selected, single click toggles selection
+    if (selectedFileIds.size > 0 || selectedFolderIds.size > 0) {
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(file.id)) next.delete(file.id);
+        else next.add(file.id);
+        return next;
+      });
+    } else {
+      setSelectedFileIds(new Set([file.id]));
+    }
+  };
+
+  const handleLightboxNavigate = (index: number) => {
+    if (index >= 0 && index < filteredFiles.length) {
+      setLightboxFile(filteredFiles[index]);
+      setLightboxIndex(index);
+    }
+  };
+
+  const handleCaptionSave = (id: string, caption: string) => {
+    updateCaptionMutation.mutate({ id, caption });
+    if (lightboxFile && lightboxFile.id === id) {
+      setLightboxFile({ ...lightboxFile, caption });
+    }
+  };
+
+  const handleRenameFile = (id: string, name: string) => {
+    renameFileMutation.mutate({ id, name });
+    setRenamingFile(null);
+  };
+
+  const handleDeleteFile = (id: string) => {
+    deleteFileMutation.mutate(id);
+    setLightboxFile(null);
+  };
+
+  // Folder actions
+  const handleCreateAlbum = (name: string) => {
+    createFolderMutation.mutate({ name, parentId: currentFolderId });
+  };
+
+  const handleRenameAlbum = (id: string, name: string) => {
+    renameFolderMutation.mutate({ id, name });
+    setRenamingFolder(null);
+  };
+
+  const handleDeleteAlbum = (folder: VFolder) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus album "${folder.name}"? File di dalamnya juga akan terhapus.`)) {
+      deleteFolderMutation.mutate(folder.id);
+    }
+  };
+
+  const handleMoveFile = (fileId: string, targetFolderId: string | null) => {
+    moveFileMutation.mutate({ id: fileId, folderId: targetFolderId });
+    setMovingFile(null);
+    if (lightboxFile && lightboxFile.id === fileId) {
+      setLightboxFile(null);
+    }
+  };
+
+  // Batch actions
+  const selectedFilesList = filteredFiles.filter((f) => selectedFileIds.has(f.id));
+  const selectedFoldersList = filteredFolders.filter((f) => selectedFolderIds.has(f.id));
+
+  const handleBatchDownload = async () => {
+    for (const f of selectedFilesList) {
+      await downloadFile(f.id);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  };
+
+  const handleBatchDelete = () => {
+    const total = selectedFilesList.length + selectedFoldersList.length;
+    if (total === 0) return;
+
+    if (
+      window.confirm(
+        `Apakah Anda yakin ingin menghapus ${total} item yang dipilih? Item juga akan dihapus dari Telegram.`
+      )
+    ) {
+      for (const f of selectedFilesList) {
+        deleteFileMutation.mutate(f.id);
+      }
+      for (const fold of selectedFoldersList) {
+        deleteFolderMutation.mutate(fold.id);
+      }
+      handleClearSelection();
+    }
+  };
+
+  const handleBatchMoveSubmit = (fileIds: string[], targetFolderId: string | null) => {
+    for (const id of fileIds) {
+      moveFileMutation.mutate({ id, folderId: targetFolderId });
+    }
+    setMovingFiles([]);
+    handleClearSelection();
+  };
+
+  // Context Menu Open Handlers
+  const handleFileContextMenu = (e: React.MouseEvent, file: VFile, index: number) => {
+    // If the right-clicked file is not part of selection, select only this file
+    if (!selectedFileIds.has(file.id)) {
+      setSelectedFileIds(new Set([file.id]));
+      setSelectedFolderIds(new Set());
+    }
+    setContextMenuState({
+      x: e.clientX,
+      y: e.clientY,
+      target: { type: 'file', file, index },
+    });
+  };
+
+  const handleFolderContextMenu = (e: React.MouseEvent, folder: VFolder) => {
+    if (!selectedFolderIds.has(folder.id)) {
+      setSelectedFolderIds(new Set([folder.id]));
+      setSelectedFileIds(new Set());
+    }
+    setContextMenuState({
+      x: e.clientX,
+      y: e.clientY,
+      target: { type: 'folder', folder },
+    });
+  };
+
+  const handleCanvasContextMenu = (e: React.MouseEvent) => {
+    if (
+      isVaultModalOpen ||
+      lightboxFile ||
+      isCreateAlbumOpen ||
+      renamingFolder ||
+      renamingFile ||
+      editingCaptionFile ||
+      movingFile ||
+      movingFiles.length > 0
+    ) {
+      return;
+    }
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    e.preventDefault();
+    setContextMenuState({
+      x: e.clientX,
+      y: e.clientY,
+      target: { type: 'canvas' },
+    });
+  };
 
   return (
-    <div 
-      className="bg-background text-on-background font-body-lg antialiased"
-      style={{ '--sidebar-width': isSidebarCollapsed ? '80px' : `${sidebarWidth}px` } as React.CSSProperties}
+    <div
+      onContextMenu={handleCanvasContextMenu}
+      className="min-h-screen bg-bg-primary text-text-primary"
     >
-      {/* Left Sidebar */}
-      <Sidebar 
-        onCreateFolder={() => setIsNewFolderOpen(true)}
-        onUploadFile={handleUpload}
-        isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        sidebarWidth={sidebarWidth}
-        onSidebarWidthChange={setSidebarWidth}
-      />
-
       <Topbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onMenuClick={() => setIsMobileMenuOpen(true)}
-        isSidebarCollapsed={isSidebarCollapsed}
+        onUploadClick={handleUploadClick}
+        onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
+        onVaultClick={() => setIsVaultModalOpen(true)}
       />
 
-      {/* Main Content Workspace */}
-      <main className="transition-all duration-300 max-lg:ml-0 lg:ml-[var(--sidebar-width)] pt-16 min-h-screen">
-        {/* Page Content */}
-        <div className="max-w-[1440px] mx-auto p-margin-mobile lg:p-margin-desktop">
-        {/* Action Header for Trash View */}
-        {currentView === 'trash' && (
-          <div className="flex flex-col mb-stack-lg shrink-0 gap-2">
-            <div className="flex justify-between items-start md:items-center w-full">
-              <div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-1">Trash</h2>
-                <span className="text-body-sm text-on-surface-variant">
-                  Items in trash will be deleted forever after 30 days.
-                </span>
-              </div>
-              
-              <button
-                onClick={handleEmptyTrash}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant text-error font-label-md btn-press-anim hover:bg-error/5"
-              >
-                <span className="material-symbols-outlined text-[20px]">delete</span>
-                Empty Trash
-              </button>
-            </div>
-          </div>
-        )}
+      {/* Hidden file input */}
+      <input
+        type="file"
+        multiple
+        ref={fileInputRef}
+        onChange={handleFileInputChange}
+        className="hidden"
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip"
+      />
 
-        {/* Starred View Header */}
-        {currentView === 'starred' && (
-          <div className="flex flex-col mb-stack-lg shrink-0 gap-2">
-            <h2 className="font-headline-lg text-headline-lg text-on-surface mb-1">Starred</h2>
-            <span className="text-body-sm text-on-surface-variant">
-              Your starred files and folders.
-            </span>
-          </div>
-        )}
-
-        {/* Breadcrumbs & Title Section */}
-        {currentView !== 'trash' && currentView !== 'settings' && currentView !== 'starred' && (
-          <div className="mb-stack-lg shrink-0">
-            {currentView === 'drive' && (
-              <nav className="flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant mb-2">
-                <button
-                  onClick={() => navigate('/')}
-                  className="hover:text-primary transition-colors flex items-center gap-1 font-medium"
-                >
-                  <span className="material-symbols-outlined text-[18px]">home</span>
-                  My Files
-                </button>
-                {breadcrumbs.map((crumb) => (
-                  <React.Fragment key={crumb.id}>
-                    <span className="material-symbols-outlined text-[16px] text-outline-variant">chevron_right</span>
-                    <button
-                      onClick={() => navigate(crumb.id ? `/folder/${crumb.id}` : '/')}
-                      className={`hover:text-primary transition-colors font-medium ${
-                        crumb.id === currentFolderId ? 'text-on-surface font-semibold pointer-events-none' : ''
-                      }`}
-                      disabled={crumb.id === currentFolderId}
-                    >
-                      {crumb.name}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </nav>
-            )}
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <h2 className="font-headline-lg text-headline-lg text-on-surface">
-                {currentView === 'recent'
-                  ? 'Shared'
-                  : driveData?.folders?.find((f) => f.id === currentFolderId)?.name || 'My Files'}
-              </h2>
-              {currentView === 'drive' && (
-                <button
-                  onClick={() => setIsNewFolderOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-surface-container-low border border-outline-variant/60 rounded-lg hover:bg-surface-container-highest transition-colors text-on-surface"
-                >
-                  <span className="material-symbols-outlined text-[18px]">create_new_folder</span>
-                  New Folder
-                </button>
-              )}
-            </div>
-            
-            {/* View Mode Toggle */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 border border-outline-variant rounded-lg transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-surface-container-lowest shadow-sm text-primary'
-                    : 'hover:bg-surface-container-highest text-on-surface'
-                }`}
-              >
-                <span className="material-symbols-outlined">grid_view</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 border border-outline-variant rounded-lg transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-surface-container-lowest shadow-sm text-primary'
-                    : 'hover:bg-surface-container-highest text-on-surface'
-                }`}
-              >
-                <span className="material-symbols-outlined">list</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        )}
-
-        {/* Settings View */}
-        {currentView === 'settings' && (
-          <div className="flex-1 overflow-y-auto pb-8">
-            <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">My Profile</h2>
-            <p className="text-body-sm text-on-surface-variant mb-6">Manage your profile details, including your photo, name, and phone number.</p>
-            {/* The Settings page content will be injected or imported here, but for simplicity we render the components here */}
-            {/* I will create SettingsPage.tsx and we will use it directly. Actually, I can just render SettingsView here to avoid refactoring routing */}
-            <SettingsView />
-          </div>
-        )}
-
-        {/* File Browser Explorer */}
-        {currentView !== 'settings' && (
-          <FileBrowser
-            folders={filteredFolders}
-            files={filteredFiles}
-            isLoading={
-              currentView === 'trash' ? isLoadingTrash :
-              currentView === 'starred' ? isLoadingStarred :
-              isLoadingFiles
-            }
-            viewMode={viewMode}
-            onNavigateFolder={(id) => {
-              navigate(`/folder/${id}`);
-            }}
-            onFileClick={(file) => setViewingFile(file)}
-            onFileDownload={handleFileDownload}
-            onRename={(type, item) => {
-              setRenameItem({ type, id: item.id, name: item.name });
-              setRenameName(item.name);
-            }}
-            onMove={openMoveModal}
-            onDelete={handleDelete}
-            onDeleteMultiple={handleDeleteMultiple}
-            onUpload={handleUpload}
-            isTrash={currentView === 'trash'}
-            onRestore={handleRestore}
-            onToggleStar={handleToggleStar}
-            currentFolderId={currentFolderId}
-          />
-        )}
-        </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto min-h-[calc(100vh-4rem)]">
+        <MemoryGrid
+          files={files}
+          folders={folders}
+          breadcrumbs={breadcrumbs}
+          currentFolderId={currentFolderId}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          selectedFileIds={selectedFileIds}
+          selectedFolderIds={selectedFolderIds}
+          onFileSelect={handleFileSelect}
+          onFolderSelect={handleFolderSelect}
+          onFileDoubleClick={handleFileDoubleClick}
+          onFileClick={handleFileClick}
+          onUpload={(f) => handleUpload(f, currentFolderId)}
+          onFolderOpen={handleFolderNavigate}
+          onFolderNavigate={handleFolderNavigate}
+          onFolderRename={(folder) => setRenamingFolder(folder)}
+          onFolderDelete={handleDeleteAlbum}
+          onFolderDropFiles={(droppedFiles, folderId) => handleUpload(droppedFiles, folderId)}
+          onCreateAlbum={() => setIsCreateAlbumOpen(true)}
+          onFileContextMenu={handleFileContextMenu}
+          onFolderContextMenu={handleFolderContextMenu}
+          onCanvasContextMenu={handleCanvasContextMenu}
+        />
       </main>
 
-      {/* Floating Upload Queue Manager */}
+      {/* Selection Floating Toolbar */}
+      <SelectionToolbar
+        selectedFiles={selectedFilesList}
+        selectedFolders={selectedFoldersList}
+        totalVisibleItems={filteredFiles.length + filteredFolders.length}
+        onClearSelection={handleClearSelection}
+        onSelectAll={handleSelectAll}
+        onBatchDownload={handleBatchDownload}
+        onBatchMove={() => setMovingFiles(selectedFilesList)}
+        onBatchDelete={handleBatchDelete}
+      />
+
+      {/* Custom Context Menu */}
+      <ContextMenu
+        state={contextMenuState}
+        onClose={() => setContextMenuState(null)}
+        onOpenFile={(file, idx) => {
+          setLightboxFile(file);
+          setLightboxIndex(idx);
+        }}
+        onEditCaption={(file) => setEditingCaptionFile(file)}
+        onMoveFile={(file) => setMovingFile(file)}
+        onRenameFile={(file) => setRenamingFile(file)}
+        onDownloadFile={(file) => downloadFile(file.id)}
+        onDeleteFile={(file) => handleDeleteFile(file.id)}
+        onOpenFolder={(folderId) => handleFolderNavigate(folderId)}
+        onRenameFolder={(folder) => setRenamingFolder(folder)}
+        onDeleteFolder={(folder) => handleDeleteAlbum(folder)}
+        onUploadToFolder={(folderId) => {
+          handleFolderNavigate(folderId);
+          setTimeout(() => handleUploadClick(), 100);
+        }}
+        onCreateAlbum={() => setIsCreateAlbumOpen(true)}
+        onUploadCanvas={handleUploadClick}
+        onRefresh={() => refetch()}
+        onOpenVault={() => setIsVaultModalOpen(true)}
+      />
+
+      {/* Upload Queue */}
       <UploaderPanel />
 
-      {/* MODAL 1: Create New Folder */}
-      {isNewFolderOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-border-glass bg-bg-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                <FolderPlus size={18} className="text-accent-primary" />
-                New Folder
-              </h3>
-              <button
-                onClick={() => setIsNewFolderOpen(false)}
-                className="text-text-secondary hover:text-text-primary p-1 rounded-md hover:bg-bg-tertiary transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={handleCreateFolder} className="flex flex-col gap-4">
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Folder name"
-                className="w-full h-10 px-3 rounded-lg bg-bg-tertiary border border-border-glass text-text-primary text-sm focus:outline-none focus:border-accent-primary transition-all"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsNewFolderOpen(false)}
-                  className="h-9 px-4 rounded-lg bg-bg-tertiary border border-border-glass text-text-secondary text-sm font-semibold hover:bg-bg-secondary hover:text-text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newFolderName.trim()}
-                  className="h-9 px-4 rounded-lg bg-accent-primary text-text-primary text-sm font-semibold hover:bg-accent-secondary shadow-lg shadow-accent-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: Rename Item */}
-      {renameItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-border-glass bg-bg-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-text-primary">
-                Rename {renameItem.type === 'folder' ? 'Folder' : 'File'}
-              </h3>
-              <button
-                onClick={() => setRenameItem(null)}
-                className="text-text-secondary hover:text-text-primary p-1 rounded-md hover:bg-bg-tertiary transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={handleRename} className="flex flex-col gap-4">
-              <input
-                type="text"
-                value={renameName}
-                onChange={(e) => setRenameName(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg bg-bg-tertiary border border-border-glass text-text-primary text-sm focus:outline-none focus:border-accent-primary transition-all"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setRenameItem(null)}
-                  className="h-9 px-4 rounded-lg bg-bg-tertiary border border-border-glass text-text-secondary text-sm font-semibold hover:bg-bg-secondary hover:text-text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!renameName.trim() || renameName === renameItem.name}
-                  className="h-9 px-4 rounded-lg bg-accent-primary text-text-primary text-sm font-semibold hover:bg-accent-secondary shadow-lg shadow-accent-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Rename
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: Move Item */}
-      {moveItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border-glass bg-bg-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-text-primary truncate" title={`Move "${moveItem.name}"`}>
-                Move &quot;{moveItem.name}&quot;
-              </h3>
-              <button
-                onClick={() => setMoveItem(null)}
-                className="text-text-secondary hover:text-text-primary p-1 rounded-md hover:bg-bg-tertiary transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-4">
-              <div className="text-sm text-text-secondary mb-1">
-                Select target folder:
-              </div>
-
-              {isLoadingFolders ? (
-                <div className="flex items-center justify-center py-8 text-accent-primary">
-                  <Loader2 className="animate-spin" size={24} />
-                </div>
-              ) : (
-                <div className="max-h-48 overflow-y-auto no-scrollbar border border-border-glass rounded-lg bg-bg-tertiary p-2 flex flex-col gap-1">
-                  {/* Root option */}
-                  <button
-                    onClick={() => setTargetFolderId(null)}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-left transition-colors ${
-                      targetFolderId === null
-                        ? 'bg-accent-primary/10 text-accent-primary font-bold'
-                        : 'hover:bg-bg-secondary text-text-primary'
-                    }`}
-                  >
-                    <Folder className="text-warning" size={16} />
-                    My Drive (Root)
-                  </button>
-
-                  {/* All other folders list */}
-                  {allFoldersList.map((folder) => (
-                    <button
-                      key={folder.id}
-                      onClick={() => setTargetFolderId(folder.id)}
-                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-left transition-colors ${
-                        targetFolderId === folder.id
-                          ? 'bg-accent-primary/10 text-accent-primary font-bold'
-                          : 'hover:bg-bg-secondary text-text-primary'
-                      }`}
-                    >
-                      <Folder className="text-warning" size={16} />
-                      {folder.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setMoveItem(null)}
-                  className="h-9 px-4 rounded-lg bg-bg-tertiary border border-border-glass text-text-secondary text-sm font-semibold hover:bg-bg-secondary hover:text-text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleMove}
-                  disabled={isLoadingFolders}
-                  className="h-9 px-4 rounded-lg bg-accent-primary text-text-primary text-sm font-semibold hover:bg-accent-secondary shadow-lg shadow-accent-primary/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Move Here
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: File Preview */}
-      {viewingFile && (
-        <FileViewerModal 
-          file={viewingFile}
-          onClose={() => setViewingFile(null)}
-          onDownload={() => {
-            handleFileDownload(viewingFile);
-            setViewingFile(null); // Optional: close modal on download
-          }}
+      {/* Lightbox Modal */}
+      {lightboxFile && (
+        <LightboxModal
+          file={lightboxFile}
+          files={filteredFiles}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxFile(null)}
+          onNavigate={handleLightboxNavigate}
+          onCaptionSave={handleCaptionSave}
+          onDelete={handleDeleteFile}
+          onMove={(file) => setMovingFile(file)}
         />
       )}
 
-      {/* MODAL 5: Confirmation */}
-      {confirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-border-glass bg-bg-secondary p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-text-primary">
-                {confirmModal.title}
-              </h3>
-              <button
-                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                className="text-text-secondary hover:text-text-primary p-1 rounded-md hover:bg-bg-tertiary transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-6">
-              <p className="text-sm text-text-secondary leading-relaxed">
-                {confirmModal.message}
-              </p>
-              <div className="flex justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                  className="h-9 px-4 rounded-lg bg-bg-tertiary border border-border-glass text-text-secondary text-sm font-semibold hover:bg-bg-secondary hover:text-text-primary transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmModal.onConfirm}
-                  className={`h-9 px-4 rounded-lg text-white text-sm font-semibold shadow-lg transition-colors ${
-                    confirmModal.isDestructive 
-                      ? 'bg-error hover:bg-error/90 shadow-error/25' 
-                      : 'bg-accent-primary hover:bg-accent-secondary shadow-accent-primary/25'
-                  }`}
-                >
-                  {confirmModal.confirmText}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Aetheria Vault Modal */}
+      <VaultModal
+        isOpen={isVaultModalOpen}
+        onClose={() => setIsVaultModalOpen(false)}
+        user={user}
+        files={allMemories.length > 0 ? allMemories : files}
+        folders={folders}
+        onUploadClick={handleUploadClick}
+        onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
+        onRefresh={() => refetch()}
+      />
+
+      {/* Create Album Modal */}
+      <CreateAlbumModal
+        isOpen={isCreateAlbumOpen}
+        onClose={() => setIsCreateAlbumOpen(false)}
+        onCreate={handleCreateAlbum}
+        isLoading={createFolderMutation.isPending}
+      />
+
+      {/* Rename Album Modal */}
+      <RenameAlbumModal
+        isOpen={renamingFolder !== null}
+        folder={renamingFolder}
+        onClose={() => setRenamingFolder(null)}
+        onRename={handleRenameAlbum}
+        isLoading={renameFolderMutation.isPending}
+      />
+
+      {/* Rename File Modal */}
+      <RenameFileModal
+        isOpen={renamingFile !== null}
+        file={renamingFile}
+        onClose={() => setRenamingFile(null)}
+        onRename={handleRenameFile}
+        isLoading={renameFileMutation.isPending}
+      />
+
+      {/* Edit Caption Modal */}
+      <EditCaptionModal
+        isOpen={editingCaptionFile !== null}
+        file={editingCaptionFile}
+        onClose={() => setEditingCaptionFile(null)}
+        onSave={handleCaptionSave}
+        isLoading={updateCaptionMutation.isPending}
+      />
+
+      {/* Single Move File Modal */}
+      <MoveFileModal
+        isOpen={movingFile !== null}
+        file={movingFile}
+        folders={folders}
+        onClose={() => setMovingFile(null)}
+        onMove={handleMoveFile}
+        isLoading={moveFileMutation.isPending}
+      />
+
+      {/* Batch Move File Modal */}
+      <MoveFileModal
+        isOpen={movingFiles.length > 0}
+        files={movingFiles}
+        folders={folders}
+        onClose={() => setMovingFiles([])}
+        onMove={handleMoveFile}
+        onMoveMultiple={handleBatchMoveSubmit}
+        isLoading={moveFileMutation.isPending}
+      />
     </div>
   );
 };
