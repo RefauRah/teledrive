@@ -14,7 +14,9 @@ import { VaultModal } from '../components/gallery/VaultModal';
 import { ConfirmModal } from '../components/gallery/ConfirmModal';
 import { SelectionToolbar } from '../components/gallery/SelectionToolbar';
 import { ContextMenu, type ContextMenuState } from '../components/gallery/ContextMenu';
+import { MobileNav } from '../components/layout/MobileNav';
 import { UploaderPanel } from '../components/upload/UploaderPanel';
+import { useViewModeStore } from '../stores/useViewModeStore';
 import {
   useDirectory,
   useBreadcrumbs,
@@ -33,6 +35,7 @@ import type { VFile, VFolder } from '../domain/types';
 
 export const MemoriesPage: React.FC = () => {
   const { user, isAuthenticated, initialize } = useAuthStore();
+  const { viewMode } = useViewModeStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -389,53 +392,82 @@ export const MemoriesPage: React.FC = () => {
   return (
     <div
       onContextMenu={handleCanvasContextMenu}
-      className="min-h-screen bg-bg-primary text-text-primary"
+      className={
+        viewMode === 'mobile'
+          ? 'min-h-screen bg-bg-secondary flex justify-center'
+          : 'min-h-screen bg-bg-primary text-text-primary'
+      }
     >
-      <Topbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onUploadClick={handleUploadClick}
-        onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
-        onVaultClick={() => setIsVaultModalOpen(true)}
-      />
-
-      {/* Hidden file input */}
-      <input
-        type="file"
-        multiple
-        ref={fileInputRef}
-        onChange={handleFileInputChange}
-        className="hidden"
-        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip"
-      />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto min-h-[calc(100vh-4rem)]">
-        <MemoryGrid
-          files={files}
-          folders={folders}
-          breadcrumbs={breadcrumbs}
-          currentFolderId={currentFolderId}
-          isLoading={isLoading}
+      <div
+        className={
+          viewMode === 'mobile'
+            ? 'w-full max-w-md min-h-screen bg-bg-primary text-text-primary shadow-[0_0_60px_rgba(0,0,0,0.8)] border-x border-border-subtle relative pb-24'
+            : 'w-full min-h-screen'
+        }
+      >
+        <Topbar
           searchQuery={searchQuery}
-          selectedFileIds={selectedFileIds}
-          selectedFolderIds={selectedFolderIds}
-          onFileSelect={handleFileSelect}
-          onFolderSelect={handleFolderSelect}
-          onFileDoubleClick={handleFileDoubleClick}
-          onFileClick={handleFileClick}
-          onUpload={(f) => handleUpload(f, currentFolderId)}
-          onFolderOpen={handleFolderNavigate}
-          onFolderNavigate={handleFolderNavigate}
-          onFolderRename={(folder) => setRenamingFolder(folder)}
-          onFolderDelete={handleDeleteAlbum}
-          onFolderDropFiles={(droppedFiles, folderId) => handleUpload(droppedFiles, folderId)}
-          onCreateAlbum={() => setIsCreateAlbumOpen(true)}
-          onFileContextMenu={handleFileContextMenu}
-          onFolderContextMenu={handleFolderContextMenu}
-          onCanvasContextMenu={handleCanvasContextMenu}
+          onSearchChange={setSearchQuery}
+          onUploadClick={handleUploadClick}
+          onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
+          onVaultClick={() => setIsVaultModalOpen(true)}
         />
-      </main>
+
+        {/* Hidden file input */}
+        <input
+          type="file"
+          multiple
+          ref={fileInputRef}
+          onChange={handleFileInputChange}
+          className="hidden"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip"
+        />
+
+        {/* Main Content */}
+        <main
+          className={
+            viewMode === 'mobile'
+              ? 'px-3 py-3'
+              : 'max-w-7xl mx-auto min-h-[calc(100vh-4rem)]'
+          }
+        >
+          <MemoryGrid
+            files={files}
+            folders={folders}
+            breadcrumbs={breadcrumbs}
+            currentFolderId={currentFolderId}
+            isLoading={isLoading}
+            searchQuery={searchQuery}
+            selectedFileIds={selectedFileIds}
+            selectedFolderIds={selectedFolderIds}
+            onFileSelect={handleFileSelect}
+            onFolderSelect={handleFolderSelect}
+            onFileDoubleClick={handleFileDoubleClick}
+            onFileClick={handleFileClick}
+            onUpload={(f) => handleUpload(f, currentFolderId)}
+            onFolderOpen={handleFolderNavigate}
+            onFolderNavigate={handleFolderNavigate}
+            onFolderRename={(folder) => setRenamingFolder(folder)}
+            onFolderDelete={handleDeleteAlbum}
+            onFolderDropFiles={(droppedFiles, folderId) => handleUpload(droppedFiles, folderId)}
+            onCreateAlbum={() => setIsCreateAlbumOpen(true)}
+            onFileContextMenu={handleFileContextMenu}
+            onFolderContextMenu={handleFolderContextMenu}
+            onCanvasContextMenu={handleCanvasContextMenu}
+          />
+        </main>
+
+        {/* Mobile Bottom Navigation Bar */}
+        {viewMode === 'mobile' && (
+          <MobileNav
+            onHomeClick={() => handleFolderNavigate(null)}
+            onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
+            onUploadClick={handleUploadClick}
+            onVaultClick={() => setIsVaultModalOpen(true)}
+            onProfileClick={() => setIsVaultModalOpen(true)}
+          />
+        )}
+      </div>
 
       {/* Selection Floating Toolbar */}
       <SelectionToolbar

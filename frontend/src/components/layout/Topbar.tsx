@@ -2,7 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { Search, Upload, LogOut, FolderPlus, Sparkles, Loader2 } from 'lucide-react';
+import { useViewModeStore } from '../../stores/useViewModeStore';
+import {
+  Search,
+  Upload,
+  LogOut,
+  FolderPlus,
+  Sparkles,
+  Loader2,
+  Smartphone,
+  Monitor,
+} from 'lucide-react';
 
 interface TopbarProps {
   searchQuery: string;
@@ -20,6 +30,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   onVaultClick,
 }) => {
   const { user, logout } = useAuthStore();
+  const { viewMode, toggleViewMode } = useViewModeStore();
   const navigate = useNavigate();
   const initial = user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U';
 
@@ -112,6 +123,25 @@ export const Topbar: React.FC<TopbarProps> = ({
             <span className="hidden sm:inline">Upload</span>
           </button>
 
+          {/* View Mode Switcher button */}
+          <button
+            onClick={toggleViewMode}
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle hover:border-accent-warm/30 text-text-secondary hover:text-text-primary text-xs font-semibold transition-all cursor-pointer shadow-sm"
+            title={viewMode === 'desktop' ? 'Beralih ke Tampilan Mobile' : 'Beralih ke Tampilan Desktop'}
+          >
+            {viewMode === 'desktop' ? (
+              <>
+                <Smartphone size={15} className="text-accent-warm" />
+                <span className="hidden md:inline">Mode HP</span>
+              </>
+            ) : (
+              <>
+                <Monitor size={15} className="text-accent-rose" />
+                <span className="hidden md:inline">Desktop</span>
+              </>
+            )}
+          </button>
+
           {/* Profile */}
           <div className="relative" ref={menuRef}>
             <button
@@ -137,6 +167,26 @@ export const Topbar: React.FC<TopbarProps> = ({
                   </p>
                 </div>
                 <div className="py-1">
+                  <button
+                    className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      toggleViewMode();
+                    }}
+                  >
+                    {viewMode === 'desktop' ? (
+                      <>
+                        <Smartphone size={16} className="text-accent-warm" />
+                        <span>Mode Mobile</span>
+                      </>
+                    ) : (
+                      <>
+                        <Monitor size={16} className="text-accent-rose" />
+                        <span>Mode Desktop</span>
+                      </>
+                    )}
+                  </button>
+
                   {onVaultClick && (
                     <button
                       className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
