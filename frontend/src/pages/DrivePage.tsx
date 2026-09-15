@@ -11,6 +11,7 @@ import { RenameFileModal } from '../components/gallery/RenameFileModal';
 import { EditCaptionModal } from '../components/gallery/EditCaptionModal';
 import { MoveFileModal } from '../components/gallery/MoveFileModal';
 import { VaultModal } from '../components/gallery/VaultModal';
+import { ConfirmModal } from '../components/gallery/ConfirmModal';
 import { SelectionToolbar } from '../components/gallery/SelectionToolbar';
 import { ContextMenu, type ContextMenuState } from '../components/gallery/ContextMenu';
 import { UploaderPanel } from '../components/upload/UploaderPanel';
@@ -47,6 +48,16 @@ export const MemoriesPage: React.FC = () => {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [movingFiles, setMovingFiles] = useState<VFile[]>([]);
+
+  // Custom confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDanger?: boolean;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
 
   // Context Menu state
   const [contextMenuState, setContextMenuState] = useState<ContextMenuState | null>(null);
@@ -222,8 +233,20 @@ export const MemoriesPage: React.FC = () => {
   };
 
   const handleDeleteFile = (id: string) => {
-    deleteFileMutation.mutate(id);
-    setLightboxFile(null);
+    const targetFile = files.find((f) => f.id === id) || allMemories.find((f) => f.id === id);
+    const fileName = targetFile?.name || 'media ini';
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Kenangan?',
+      message: `Apakah Anda yakin ingin menghapus "${fileName}"?`,
+      confirmLabel: 'Hapus Kenangan',
+      isDanger: true,
+      onConfirm: async () => {
+        await deleteFileMutation.mutateAsync(id);
+        setLightboxFile(null);
+        setConfirmDialog(null);
+      },
+    });
   };
 
   // Folder actions
@@ -237,9 +260,17 @@ export const MemoriesPage: React.FC = () => {
   };
 
   const handleDeleteAlbum = (folder: VFolder) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus album "${folder.name}"? File di dalamnya juga akan terhapus.`)) {
-      deleteFolderMutation.mutate(folder.id);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Hapus Album?',
+      message: `Apakah Anda yakin ingin menghapus album "${folder.name}"? Seluruh foto dan media di dalamnya juga akan terhapus.`,
+      confirmLabel: 'Hapus Album',
+      isDanger: true,
+      onConfirm: async () => {
+        await deleteFolderMutation.mutateAsync(folder.id);
+        setConfirmDialog(null);
+      },
+    });
   };
 
   const handleMoveFile = (fileId: string, targetFolderId: string | null) => {
@@ -268,27 +299,31 @@ export const MemoriesPage: React.FC = () => {
     }
   };
 
-  const handleBatchDelete = async () => {
+  const handleBatchDelete = () => {
     const total = selectedFilesList.length + selectedFoldersList.length;
     if (total === 0) return;
 
-    if (
-      window.confirm(
-        `Apakah Anda yakin ingin menghapus ${total} item yang dipilih? Item juga akan dihapus dari Telegram.`
-      )
-    ) {
-      try {
-        setIsBatchDeleting(true);
-        const promises = [
-          ...selectedFilesList.map((f) => deleteFileMutation.mutateAsync(f.id)),
-          ...selectedFoldersList.map((fold) => deleteFolderMutation.mutateAsync(fold.id)),
-        ];
-        await Promise.all(promises);
-        handleClearSelection();
-      } finally {
-        setIsBatchDeleting(false);
-      }
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: `Hapus ${total} Item Terpilih?`,
+      message: `Apakah Anda yakin ingin menghapus ${total} item yang dipilih? Tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: `Hapus ${total} Item`,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          setIsBatchDeleting(true);
+          const promises = [
+            ...selectedFilesList.map((f) => deleteFileMutation.mutateAsync(f.id)),
+            ...selectedFoldersList.map((fold) => deleteFolderMutation.mutateAsync(fold.id)),
+          ];
+          await Promise.all(promises);
+          handleClearSelection();
+        } finally {
+          setIsBatchDeleting(false);
+          setConfirmDialog(null);
+        }
+      },
+    });
   };
 
   const handleBatchMoveSubmit = (fileIds: string[], targetFolderId: string | null) => {
@@ -534,6 +569,20 @@ export const MemoriesPage: React.FC = () => {
         onMoveMultiple={handleBatchMoveSubmit}
         isLoading={moveFileMutation.isPending}
       />
+
+      {/* Custom Confirm Modal */}
+      {confirmDialog && (
+        <ConfirmModal
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          isDanger={confirmDialog.isDanger}
+          isLoading={isBatchDeleting || deleteFolderMutation.isPending || deleteFileMutation.isPending}
+          onConfirm={confirmDialog.onConfirm}
+          onClose={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   );
 };
