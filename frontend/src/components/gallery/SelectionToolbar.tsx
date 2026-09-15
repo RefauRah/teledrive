@@ -8,6 +8,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { VFile, VFolder } from '../../domain/types';
+import { useViewModeStore } from '../../stores/useViewModeStore';
 
 interface SelectionToolbarProps {
   selectedFiles: VFile[];
@@ -34,6 +35,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   onBatchMove,
   onBatchDelete,
 }) => {
+  const { viewMode } = useViewModeStore();
   const totalSelected = selectedFiles.length + selectedFolders.length;
 
   if (totalSelected === 0) return null;
@@ -41,7 +43,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   const isAllSelected = totalSelected === totalVisibleItems && totalVisibleItems > 0;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in-scale select-none max-w-[92vw]">
+    <div className={`fixed ${viewMode === 'mobile' ? 'bottom-20' : 'bottom-6'} left-1/2 -translate-x-1/2 z-40 animate-fade-in-scale select-none max-w-[92vw]`}>
       <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 rounded-2xl bg-bg-secondary/95 backdrop-blur-xl border border-accent-warm/40 shadow-[0_10px_35px_rgba(0,0,0,0.5),0_0_20px_rgba(235,160,54,0.15)] text-text-primary">
         {/* Count Badge */}
         <div className="flex items-center gap-2 pr-2 sm:pr-3 border-r border-border-subtle">

@@ -60,7 +60,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
         {/* Logo */}
         <div
           onClick={() => navigate('/')}
@@ -69,59 +69,64 @@ export const Topbar: React.FC<TopbarProps> = ({
           <div className="w-8 h-8 rounded-xl gradient-warm flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-accent-warm/20 group-hover:shadow-accent-warm/30 transition-shadow">
             {isBusy ? <Loader2 size={16} className="animate-spin text-white" /> : 'A'}
           </div>
-          <h1 className="text-lg font-extrabold gradient-warm-text hidden sm:block tracking-wide">
+          <h1 className={`text-lg font-extrabold gradient-warm-text tracking-wide ${viewMode === 'mobile' ? 'inline' : 'hidden sm:block'}`}>
             Aetheria
           </h1>
         </div>
 
         {/* Search */}
-        <div className="flex-1 max-w-lg mx-4">
+        <div className={`flex-1 ${viewMode === 'mobile' ? 'max-w-[200px] ml-auto' : 'max-w-lg mx-4'}`}>
           <div className="relative group">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-warm transition-colors" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-warm transition-colors" />
             <input
               type="text"
-              placeholder="Cari kenangan atau album..."
+              placeholder={viewMode === 'mobile' ? 'Cari...' : 'Cari kenangan atau album...'}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-bg-tertiary/80 border border-border-subtle rounded-xl py-2 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-warm/30 focus:bg-bg-tertiary transition-all"
+              className={`w-full bg-bg-tertiary/80 border border-border-subtle rounded-xl py-1.5 pl-9 pr-3 text-xs sm:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-warm/30 focus:bg-bg-tertiary transition-all`}
             />
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Vault Status button */}
-          {onVaultClick && (
-            <button
-              onClick={onVaultClick}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-warm/10 hover:bg-accent-warm/20 border border-accent-warm/25 text-accent-warm text-xs font-bold transition-all cursor-pointer shadow-sm"
-              title="Aetheria Vault Status"
-            >
-              <Sparkles size={14} className="animate-pulse" />
-              <span className="hidden sm:inline">Vault</span>
-            </button>
-          )}
+          {/* Desktop-only action buttons (Hidden in mobile mode because they exist in BottomNav) */}
+          {viewMode === 'desktop' && (
+            <>
+              {/* Vault Status button */}
+              {onVaultClick && (
+                <button
+                  onClick={onVaultClick}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-warm/10 hover:bg-accent-warm/20 border border-accent-warm/25 text-accent-warm text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  title="Aetheria Vault Status"
+                >
+                  <Sparkles size={14} className="animate-pulse" />
+                  <span className="hidden sm:inline">Vault</span>
+                </button>
+              )}
 
-          {/* Create Album button */}
-          {onCreateAlbumClick && (
-            <button
-              onClick={onCreateAlbumClick}
-              className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle hover:border-accent-warm/30 text-sm font-semibold transition-all cursor-pointer shadow-sm"
-              title="Buat Album Baru"
-            >
-              <FolderPlus size={16} className="text-accent-warm" />
-              <span>+ Album</span>
-            </button>
-          )}
+              {/* Create Album button */}
+              {onCreateAlbumClick && (
+                <button
+                  onClick={onCreateAlbumClick}
+                  className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle hover:border-accent-warm/30 text-sm font-semibold transition-all cursor-pointer shadow-sm"
+                  title="Buat Album Baru"
+                >
+                  <FolderPlus size={16} className="text-accent-warm" />
+                  <span>+ Album</span>
+                </button>
+              )}
 
-          {/* Upload button */}
-          <button
-            onClick={onUploadClick}
-            className="flex items-center gap-2 px-4 py-2 gradient-warm rounded-xl text-white font-medium text-sm btn-press shadow-lg shadow-accent-warm/20 hover:shadow-accent-warm/30 transition-shadow cursor-pointer"
-          >
-            <Upload size={16} />
-            <span className="hidden sm:inline">Upload</span>
-          </button>
+              {/* Upload button */}
+              <button
+                onClick={onUploadClick}
+                className="flex items-center gap-2 px-4 py-2 gradient-warm rounded-xl text-white font-medium text-sm btn-press shadow-lg shadow-accent-warm/20 hover:shadow-accent-warm/30 transition-shadow cursor-pointer"
+              >
+                <Upload size={16} />
+                <span className="hidden sm:inline">Upload</span>
+              </button>
+            </>
+          )}
 
           {/* View Mode Switcher button */}
           <button

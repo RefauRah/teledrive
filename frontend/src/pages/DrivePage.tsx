@@ -17,6 +17,7 @@ import { ContextMenu, type ContextMenuState } from '../components/gallery/Contex
 import { MobileNav } from '../components/layout/MobileNav';
 import { UploaderPanel } from '../components/upload/UploaderPanel';
 import { useViewModeStore } from '../stores/useViewModeStore';
+import { Monitor } from 'lucide-react';
 import {
   useDirectory,
   useBreadcrumbs,
@@ -35,7 +36,7 @@ import type { VFile, VFolder } from '../domain/types';
 
 export const MemoriesPage: React.FC = () => {
   const { user, isAuthenticated, initialize } = useAuthStore();
-  const { viewMode } = useViewModeStore();
+  const { viewMode, toggleViewMode, isMobileDevice } = useViewModeStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -393,69 +394,102 @@ export const MemoriesPage: React.FC = () => {
     <div
       onContextMenu={handleCanvasContextMenu}
       className={
-        viewMode === 'mobile'
-          ? 'min-h-screen bg-bg-secondary flex justify-center'
+        viewMode === 'mobile' && !isMobileDevice
+          ? 'min-h-screen bg-[#07070a] flex flex-col items-center justify-center p-3 sm:p-6 relative'
           : 'min-h-screen bg-bg-primary text-text-primary'
       }
     >
+      {/* Floating Desktop Switcher Pill (Only in simulated mobile on desktop) */}
+      {viewMode === 'mobile' && !isMobileDevice && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <button
+            onClick={toggleViewMode}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-bg-secondary/90 hover:bg-bg-tertiary border border-border-default hover:border-accent-warm/40 text-text-primary text-xs font-bold transition-all shadow-2xl cursor-pointer backdrop-blur-xl group"
+            title="Kembali ke Mode Desktop Layar Penuh"
+          >
+            <Monitor size={15} className="text-accent-rose group-hover:scale-110 transition-transform" />
+            <span>Mode Desktop</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Container: Phone Mockup (if on desktop) or Full-Bleed View (if mobile / desktop mode) */}
       <div
         className={
-          viewMode === 'mobile'
-            ? 'w-full max-w-md min-h-screen bg-bg-primary text-text-primary shadow-[0_0_60px_rgba(0,0,0,0.8)] border-x border-border-subtle relative pb-24'
+          viewMode === 'mobile' && !isMobileDevice
+            ? 'w-full max-w-[420px] h-[850px] max-h-[92vh] bg-bg-primary text-text-primary rounded-[38px] border-[5px] border-[#22222c] shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_40px_rgba(245,158,11,0.06)] overflow-hidden flex flex-col relative'
+            : viewMode === 'mobile'
+            ? 'w-full min-h-screen bg-bg-primary text-text-primary relative pb-20'
             : 'w-full min-h-screen'
         }
       >
-        <Topbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onUploadClick={handleUploadClick}
-          onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
-          onVaultClick={() => setIsVaultModalOpen(true)}
-        />
+        {/* Phone Notch (Only for simulated phone frame on desktop) */}
+        {viewMode === 'mobile' && !isMobileDevice && (
+          <div className="w-24 h-3.5 bg-[#22222c] rounded-b-xl mx-auto shrink-0 flex items-center justify-center">
+            <div className="w-8 h-1 rounded-full bg-[#333340]" />
+          </div>
+        )}
 
-        {/* Hidden file input */}
-        <input
-          type="file"
-          multiple
-          ref={fileInputRef}
-          onChange={handleFileInputChange}
-          className="hidden"
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip"
-        />
-
-        {/* Main Content */}
-        <main
+        {/* Scrollable screen container for phone simulator, or normal flow */}
+        <div
           className={
-            viewMode === 'mobile'
-              ? 'px-3 py-3'
-              : 'max-w-7xl mx-auto min-h-[calc(100vh-4rem)]'
+            viewMode === 'mobile' && !isMobileDevice
+              ? 'flex-1 overflow-y-auto no-scrollbar relative flex flex-col'
+              : 'w-full'
           }
         >
-          <MemoryGrid
-            files={files}
-            folders={folders}
-            breadcrumbs={breadcrumbs}
-            currentFolderId={currentFolderId}
-            isLoading={isLoading}
+          <Topbar
             searchQuery={searchQuery}
-            selectedFileIds={selectedFileIds}
-            selectedFolderIds={selectedFolderIds}
-            onFileSelect={handleFileSelect}
-            onFolderSelect={handleFolderSelect}
-            onFileDoubleClick={handleFileDoubleClick}
-            onFileClick={handleFileClick}
-            onUpload={(f) => handleUpload(f, currentFolderId)}
-            onFolderOpen={handleFolderNavigate}
-            onFolderNavigate={handleFolderNavigate}
-            onFolderRename={(folder) => setRenamingFolder(folder)}
-            onFolderDelete={handleDeleteAlbum}
-            onFolderDropFiles={(droppedFiles, folderId) => handleUpload(droppedFiles, folderId)}
-            onCreateAlbum={() => setIsCreateAlbumOpen(true)}
-            onFileContextMenu={handleFileContextMenu}
-            onFolderContextMenu={handleFolderContextMenu}
-            onCanvasContextMenu={handleCanvasContextMenu}
+            onSearchChange={setSearchQuery}
+            onUploadClick={handleUploadClick}
+            onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
+            onVaultClick={() => setIsVaultModalOpen(true)}
           />
-        </main>
+
+          {/* Hidden file input */}
+          <input
+            type="file"
+            multiple
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            className="hidden"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip"
+          />
+
+          {/* Main Content */}
+          <main
+            className={
+              viewMode === 'mobile'
+                ? 'px-3 py-2 flex-1'
+                : 'max-w-7xl mx-auto min-h-[calc(100vh-4rem)]'
+            }
+          >
+            <MemoryGrid
+              files={files}
+              folders={folders}
+              breadcrumbs={breadcrumbs}
+              currentFolderId={currentFolderId}
+              isLoading={isLoading}
+              searchQuery={searchQuery}
+              selectedFileIds={selectedFileIds}
+              selectedFolderIds={selectedFolderIds}
+              onFileSelect={handleFileSelect}
+              onFolderSelect={handleFolderSelect}
+              onFileDoubleClick={handleFileDoubleClick}
+              onFileClick={handleFileClick}
+              onUpload={(f) => handleUpload(f, currentFolderId)}
+              onFolderOpen={handleFolderNavigate}
+              onFolderNavigate={handleFolderNavigate}
+              onFolderRename={(folder) => setRenamingFolder(folder)}
+              onFolderDelete={handleDeleteAlbum}
+              onFolderDropFiles={(droppedFiles, folderId) => handleUpload(droppedFiles, folderId)}
+              onCreateAlbum={() => setIsCreateAlbumOpen(true)}
+              onFileContextMenu={handleFileContextMenu}
+              onFolderContextMenu={handleFolderContextMenu}
+              onCanvasContextMenu={handleCanvasContextMenu}
+            />
+          </main>
+        </div>
 
         {/* Mobile Bottom Navigation Bar */}
         {viewMode === 'mobile' && (

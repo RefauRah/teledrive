@@ -20,7 +20,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   const { toggleViewMode, isMobileDevice } = useViewModeStore();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 bg-bg-secondary/95 backdrop-blur-2xl border-t border-border-subtle/80 px-2 py-1.5 shadow-[0_-10px_25px_rgba(0,0,0,0.5)] select-none">
+    <nav className={`${isMobileDevice ? 'fixed' : 'sticky'} bottom-0 inset-x-0 z-40 bg-bg-secondary/95 backdrop-blur-2xl border-t border-border-subtle/80 px-2 py-1.5 shadow-[0_-10px_25px_rgba(0,0,0,0.5)] select-none shrink-0`}>
       <div className="max-w-md mx-auto flex items-center justify-around">
         {/* Home / Gallery */}
         <button
