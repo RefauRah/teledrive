@@ -120,11 +120,14 @@ export function useSyncWithTelegram() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => syncWithTelegram(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['directory'] });
-      queryClient.invalidateQueries({ queryKey: ['memories'] });
-      queryClient.refetchQueries({ queryKey: ['directory'] });
-      queryClient.refetchQueries({ queryKey: ['memories'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['directory'] });
+      await queryClient.invalidateQueries({ queryKey: ['memories'] });
+      await queryClient.invalidateQueries({ queryKey: ['breadcrumbs'] });
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['directory'] }),
+        queryClient.refetchQueries({ queryKey: ['memories'] }),
+      ]);
     },
   });
 }

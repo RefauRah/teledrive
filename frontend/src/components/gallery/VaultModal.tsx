@@ -71,7 +71,9 @@ export const VaultModal: React.FC<VaultModalProps> = ({
           message: 'Semua media sudah sinkron dengan Pesan Tersimpan Telegram.',
         });
       }
-      onRefresh?.();
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (err: any) {
       setSyncStatus({
         type: 'error',

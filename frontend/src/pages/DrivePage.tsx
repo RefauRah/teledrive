@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/useAuthStore';
 import { Topbar } from '../components/layout/Topbar';
 import { MemoryGrid } from '../components/gallery/MemoryGrid';
@@ -33,6 +34,7 @@ export const MemoriesPage: React.FC = () => {
   const { user, isAuthenticated, initialize } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
   // Current folder ID from URL query params or null for root
   const currentFolderId = searchParams.get('folder_id') || null;
@@ -61,9 +63,9 @@ export const MemoriesPage: React.FC = () => {
   const addFileToQueue = useUploadStore((state) => state.addFile);
 
   // React Query Hooks
-  const { data: directoryContent, isLoading, refetch } = useDirectory(currentFolderId);
+  const { data: directoryContent, isLoading, refetch: refetchDirectory } = useDirectory(currentFolderId);
   const { data: breadcrumbs = [] } = useBreadcrumbs(currentFolderId);
-  const { data: allMemories = [] } = useMemories();
+  const { data: allMemories = [], refetch: refetchMemories } = useMemories();
 
   const createFolderMutation = useCreateFolder();
   const renameFolderMutation = useRenameFolder();
@@ -423,7 +425,11 @@ export const MemoriesPage: React.FC = () => {
         }}
         onCreateAlbum={() => setIsCreateAlbumOpen(true)}
         onUploadCanvas={handleUploadClick}
-        onRefresh={() => refetch()}
+        onRefresh={async () => {
+          await queryClient.invalidateQueries({ queryKey: ['directory'] });
+          await queryClient.invalidateQueries({ queryKey: ['memories'] });
+          await Promise.all([refetchDirectory(), refetchMemories()]);
+        }}
         onOpenVault={() => setIsVaultModalOpen(true)}
       />
 
@@ -453,7 +459,11 @@ export const MemoriesPage: React.FC = () => {
         folders={folders}
         onUploadClick={handleUploadClick}
         onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
-        onRefresh={() => refetch()}
+        onRefresh={async () => {
+          await queryClient.invalidateQueries({ queryKey: ['directory'] });
+          await queryClient.invalidateQueries({ queryKey: ['memories'] });
+          await Promise.all([refetchDirectory(), refetchMemories()]);
+        }}
       />
 
       {/* Create Album Modal */}

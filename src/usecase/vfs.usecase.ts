@@ -386,22 +386,23 @@ export class VFSUsecase {
 
       const media: any = msg.media;
 
-      if (media.document && media.document instanceof Api.Document) {
-        const doc = media.document;
+      if (media.document || media.className === 'MessageMediaDocument') {
+        const doc = media.document || media;
         size = Number(doc.size || 0);
         mimeType = doc.mimeType || 'application/octet-stream';
-        fileId = doc.id.toString();
+        fileId = doc.id ? doc.id.toString() : msg.id.toString();
 
         const nameAttr = doc.attributes?.find(
-          (a: any) => a instanceof Api.DocumentAttributeFilename
-        ) as Api.DocumentAttributeFilename | undefined;
+          (a: any) => a.className === 'DocumentAttributeFilename' || a.fileName
+        );
         name = nameAttr?.fileName || `file_${msg.id}`;
-      } else if (media.photo && media.photo instanceof Api.Photo) {
-        const photo = media.photo;
-        fileId = photo.id.toString();
+      } else if (media.photo || media.className === 'MessageMediaPhoto') {
+        const photo = media.photo || media;
+        fileId = photo.id ? photo.id.toString() : msg.id.toString();
         mimeType = 'image/jpeg';
         name = `photo_${msg.id}.jpg`;
-        size = 1024 * 100;
+        const largest = photo.sizes?.[photo.sizes.length - 1];
+        size = largest?.size || 1024 * 200;
       } else {
         continue;
       }
