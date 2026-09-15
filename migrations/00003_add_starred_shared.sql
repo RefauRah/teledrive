@@ -1,10 +1,10 @@
 -- +goose Up
 -- SQL in this section is executed when the migration is applied.
-ALTER TABLE folders ADD COLUMN is_starred BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE folders ADD COLUMN is_shared BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE folders ADD COLUMN is_starred INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE folders ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0;
 
-ALTER TABLE files ADD COLUMN is_starred BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE files ADD COLUMN is_shared BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE files ADD COLUMN is_starred INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE files ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0;
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.

@@ -2,61 +2,61 @@
 -- SQL in this section is executed when the migration is applied.
 
 -- 1. Create Users Table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    telegram_id BIGINT NOT NULL UNIQUE,
-    phone VARCHAR(20) NOT NULL UNIQUE,
-    username VARCHAR(255) NOT NULL DEFAULT '',
-    first_name VARCHAR(255) NOT NULL DEFAULT '',
-    last_name VARCHAR(255) NOT NULL DEFAULT '',
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL UNIQUE,
+    username TEXT NOT NULL DEFAULT '',
+    first_name TEXT NOT NULL DEFAULT '',
+    last_name TEXT NOT NULL DEFAULT '',
     session_data TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. Create Folders Table (VFS - Adjacency List)
-CREATE TABLE folders (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    name TEXT NOT NULL,
     parent_id INTEGER REFERENCES folders(id) ON DELETE CASCADE,
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    deleted_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, parent_id, name)
 );
 
 -- 3. Create Files Table (VFS)
-CREATE TABLE files (
-    id SERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL,
-    name VARCHAR(255) NOT NULL,
-    size BIGINT NOT NULL DEFAULT 0,
-    mime_type VARCHAR(255) NOT NULL DEFAULT 'application/octet-stream',
+    name TEXT NOT NULL,
+    size INTEGER NOT NULL DEFAULT 0,
+    mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
     telegram_message_id INTEGER NOT NULL,
-    telegram_chat_id BIGINT NOT NULL,
-    telegram_file_id VARCHAR(255) NOT NULL DEFAULT '',
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    telegram_chat_id TEXT NOT NULL,
+    telegram_file_id TEXT NOT NULL DEFAULT '',
+    deleted_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, folder_id, name)
 );
 
 -- 4. Create Auth Transactions Table (State login sementara)
-CREATE TABLE auth_transactions (
-    id VARCHAR(100) PRIMARY KEY,
-    phone VARCHAR(20) NOT NULL,
-    phone_code_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS auth_transactions (
+    id TEXT PRIMARY KEY,
+    phone TEXT NOT NULL,
+    phone_code_hash TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. Create Indexes for optimization
-CREATE INDEX idx_folders_parent ON folders(user_id, parent_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_files_folder ON files(user_id, folder_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_folders_trash ON folders(user_id) WHERE deleted_at IS NOT NULL;
-CREATE INDEX idx_files_trash ON files(user_id) WHERE deleted_at IS NOT NULL;
-CREATE INDEX idx_users_telegram_id ON users(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(user_id, parent_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_files_folder ON files(user_id, folder_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_folders_trash ON folders(user_id) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_files_trash ON files(user_id) WHERE deleted_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.

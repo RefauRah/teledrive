@@ -5,5 +5,5 @@ ALTER TABLE files DROP COLUMN is_shared;
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
-ALTER TABLE folders ADD COLUMN is_shared BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE files ADD COLUMN is_shared BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE folders ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE files ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 0;

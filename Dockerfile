@@ -14,32 +14,34 @@ RUN npm run build
 # ============================================
 # Stage 2: Build Backend
 # ============================================
-FROM golang:1.23-alpine AS backend-builder
-
-RUN apk add --no-cache gcc musl-dev
+FROM node:20-alpine AS backend-builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
-RUN go mod download
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-COPY . .
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /teledrive .
+COPY tsconfig.json ./
+COPY src/ ./src/
+RUN npm run build
 
 # ============================================
 # Stage 3: Production Runtime
 # ============================================
-FROM alpine:3.19
-
-RUN apk add --no-cache ca-certificates tzdata
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=backend-builder /teledrive .
+ENV NODE_ENV=production
+ENV PORT=8080
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev
+
+COPY --from=backend-builder /app/dist ./dist
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY migrations/ ./migrations/
 
 EXPOSE 8080
 
-ENTRYPOINT ["./teledrive"]
+CMD ["node", "dist/index.js"]
