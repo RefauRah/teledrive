@@ -4,6 +4,9 @@
   "description": "Virtual file system backed by Telegram message storage",
   "main": "dist/index.js",
   "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "rimraf dist && tsc",
