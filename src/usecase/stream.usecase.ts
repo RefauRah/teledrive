@@ -65,6 +65,57 @@ export class StreamUsecase {
     return created;
   }
 
+  public async uploadChunk(
+    userId: number,
+    fileId: string,
+    partIndex: number,
+    totalParts: number,
+    chunkBuffer: Buffer,
+    isBig: boolean
+  ): Promise<void> {
+    const user = await this.userRepo.getById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const client = await this.clientPool.getClient(userId, user.session_data);
+    await this.uploader.uploadChunk(client, fileId, partIndex, totalParts, chunkBuffer, isBig);
+  }
+
+  public async completeChunkUpload(
+    userId: number,
+    folderId: number | null,
+    fileId: string,
+    totalParts: number,
+    fileName: string,
+    fileSize: number,
+    isBig: boolean
+  ): Promise<File> {
+    const user = await this.userRepo.getById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const client = await this.clientPool.getClient(userId, user.session_data);
+    const result = await this.uploader.completeChunkUpload(client, fileId, totalParts, fileName, isBig);
+
+    const detectedMime = mime.lookup(fileName);
+    const mimeType = detectedMime || 'application/octet-stream';
+
+    const created = await this.fileRepo.create({
+      user_id: userId,
+      folder_id: folderId,
+      name: fileName,
+      size: fileSize,
+      mime_type: mimeType,
+      telegram_message_id: result.messageId,
+      telegram_chat_id: result.chatId,
+      telegram_file_id: result.fileId,
+    });
+
+    return created;
+  }
+
   public async download(
     userId: number,
     fileId: number,

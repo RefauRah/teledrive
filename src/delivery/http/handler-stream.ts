@@ -56,6 +56,70 @@ export class StreamHandler {
     }
   };
 
+  public handleUploadChunk = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const fileId = (req.headers['x-file-id'] as string) || (req.query.file_id as string);
+      const partIndexStr = (req.headers['x-part-index'] as string) || (req.query.part_index as string);
+      const totalPartsStr = (req.headers['x-total-parts'] as string) || (req.query.total_parts as string);
+      const isBigStr = (req.headers['x-is-big'] as string) || (req.query.is_big as string);
+
+      if (!fileId || partIndexStr === undefined || totalPartsStr === undefined) {
+        res.status(400).json({ error: 'x-file-id, x-part-index, and x-total-parts headers are required' });
+        return;
+      }
+
+      const partIndex = parseInt(partIndexStr, 10);
+      const totalParts = parseInt(totalPartsStr, 10);
+      const isBig = isBigStr === '1' || isBigStr === 'true';
+
+      // Read chunk stream into buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      const chunkBuffer = Buffer.concat(chunks);
+
+      if (chunkBuffer.length === 0) {
+        res.status(400).json({ error: 'Chunk buffer cannot be empty' });
+        return;
+      }
+
+      await this.streamUsecase.uploadChunk(userId, fileId, partIndex, totalParts, chunkBuffer, isBig);
+      res.status(200).json({ ok: true, partIndex });
+    } catch (err: any) {
+      console.error('Chunk upload error:', err);
+      res.status(500).json({ error: err.message || 'Failed to upload chunk' });
+    }
+  };
+
+  public handleUploadComplete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { fileId, totalParts, fileName, fileSize, folderId, isBig } = req.body;
+
+      if (!fileId || !totalParts || !fileName || !fileSize) {
+        res.status(400).json({ error: 'fileId, totalParts, fileName, and fileSize are required' });
+        return;
+      }
+
+      const file = await this.streamUsecase.completeChunkUpload(
+        userId,
+        folderId ? parseInt(folderId, 10) : null,
+        String(fileId),
+        parseInt(totalParts, 10),
+        String(fileName),
+        parseInt(fileSize, 10),
+        Boolean(isBig)
+      );
+
+      res.status(201).json(file);
+    } catch (err: any) {
+      console.error('Upload complete error:', err);
+      res.status(500).json({ error: err.message || 'Failed to finalize chunked upload' });
+    }
+  };
+
   public handleDownload = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = getAuthUserId(req);

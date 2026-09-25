@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+import bigInt from 'big-integer';
 
 export interface UploadResult {
   messageId: number;
@@ -122,5 +123,128 @@ export class Uploader {
       // Clean up temporary file
       await fs.promises.unlink(tempFilePath).catch(() => {});
     }
+  }
+
+  /**
+   * Upload a single 512KB chunk directly to Telegram DC using SaveBigFilePart or SaveFilePart.
+   * Completely stateless — avoids Vercel/proxy body size limits!
+   */
+  public async uploadChunk(
+    client: TelegramClient,
+    fileId: string,
+    partIndex: number,
+    totalParts: number,
+    chunkBuffer: Buffer,
+    isBig: boolean
+  ): Promise<void> {
+    const maxRetries = 5;
+    const bigFileId = (bigInt as any)(fileId);
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const sender = await client.getSender(client.session.dcId);
+        if (isBig) {
+          await sender.send(
+            new Api.upload.SaveBigFilePart({
+              fileId: bigFileId,
+              filePart: partIndex,
+              fileTotalParts: totalParts,
+              bytes: chunkBuffer,
+            })
+          );
+        } else {
+          await sender.send(
+            new Api.upload.SaveFilePart({
+              fileId: bigFileId,
+              filePart: partIndex,
+              bytes: chunkBuffer,
+            })
+          );
+        }
+        break;
+      } catch (err: any) {
+        const waitTime = extractFloodWait(err);
+        if (waitTime > 0) {
+          console.warn(`FLOOD_WAIT: sleeping ${waitTime}s before retry uploadChunk attempt ${attempt + 1}`);
+          await sleep(waitTime * 1000 + attempt * 1000);
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  /**
+   * Finalize chunked upload and send media to Saved Messages.
+   */
+  public async completeChunkUpload(
+    client: TelegramClient,
+    fileId: string,
+    totalParts: number,
+    fileName: string,
+    isBig: boolean
+  ): Promise<UploadResult> {
+    const bigFileId = (bigInt as any)(fileId);
+    const inputFile = isBig
+      ? new Api.InputFileBig({
+          id: bigFileId,
+          parts: totalParts,
+          name: fileName,
+        })
+      : new Api.InputFile({
+          id: bigFileId,
+          parts: totalParts,
+          name: fileName,
+          md5Checksum: '',
+        });
+
+    const maxRetries = 5;
+    let sentMsg: any = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        sentMsg = await client.sendFile('me', {
+          file: inputFile,
+          forceDocument: true,
+          attributes: [
+            new Api.DocumentAttributeFilename({
+              fileName,
+            }),
+          ],
+        });
+        break;
+      } catch (err: any) {
+        const waitTime = extractFloodWait(err);
+        if (waitTime > 0) {
+          console.warn(`FLOOD_WAIT: sleeping ${waitTime}s before retry completeChunkUpload attempt ${attempt + 1}`);
+          await sleep(waitTime * 1000 + attempt * 1000);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!sentMsg) {
+      throw new Error('Failed to send uploaded media to Saved Messages');
+    }
+
+    const messageId = sentMsg.id;
+    let chatId = '0';
+    if (sentMsg.peerId) {
+      chatId = (sentMsg.peerId.userId || sentMsg.peerId.chatId || sentMsg.peerId.channelId || 0).toString();
+    }
+
+    let resultFileId = '';
+    if (sentMsg.media && sentMsg.media.document) {
+      resultFileId = sentMsg.media.document.id.toString();
+    } else {
+      resultFileId = inputFile.id ? inputFile.id.toString() : messageId.toString();
+    }
+
+    return {
+      messageId,
+      chatId,
+      fileId: resultFileId,
+    };
   }
 }

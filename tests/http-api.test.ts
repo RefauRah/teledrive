@@ -55,6 +55,8 @@ describe('HTTP API Endpoints', () => {
 
     const mockStream: any = {
       upload: async () => ({ id: 1, name: 'uploaded.txt', size: 10 }),
+      uploadChunk: async () => {},
+      completeChunkUpload: async () => ({ id: 2, name: 'chunked_video.mp4', size: 1024 * 1024 }),
       getFileMetadata: async () => ({ id: 1, name: 'file.txt', size: 5, mime_type: 'text/plain' }),
       download: async (_uid: number, _fid: number, writer: any) => {
         writer.write(Buffer.from('hello'));
@@ -137,6 +139,46 @@ describe('HTTP API Endpoints', () => {
     assert.equal(res.status, 201);
     const body = await res.json() as any;
     assert.equal(body.id, 1);
+  });
+
+  it('POST /api/vfs/upload-chunk and /api/vfs/upload-complete should handle chunked upload', async () => {
+    const chunkData = 'chunk 0 data binary';
+    const chunkRes = await fetch(`${baseUrl}/api/vfs/upload-chunk`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Id': '1234567890',
+        'X-Part-Index': '0',
+        'X-Total-Parts': '1',
+        'X-Is-Big': '0',
+        Authorization: `Bearer ${validToken}`,
+      },
+      body: chunkData,
+    });
+
+    assert.equal(chunkRes.status, 200);
+    const chunkBody = await chunkRes.json() as any;
+    assert.equal(chunkBody.ok, true);
+
+    const completeRes = await fetch(`${baseUrl}/api/vfs/upload-complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${validToken}`,
+      },
+      body: JSON.stringify({
+        fileId: '1234567890',
+        totalParts: 1,
+        fileName: 'chunked_video.mp4',
+        fileSize: 1024 * 1024,
+        isBig: false,
+      }),
+    });
+
+    assert.equal(completeRes.status, 201);
+    const completeBody = await completeRes.json() as any;
+    assert.equal(completeBody.id, 2);
+    assert.equal(completeBody.name, 'chunked_video.mp4');
   });
 
   it('POST /api/vfs/upload should reject files exceeding 2GB with 400 error', async () => {

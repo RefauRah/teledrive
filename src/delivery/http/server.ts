@@ -32,6 +32,10 @@ export function createServer(
         'Authorization',
         'X-File-Name',
         'X-File-Size',
+        'X-File-Id',
+        'X-Part-Index',
+        'X-Total-Parts',
+        'X-Is-Big',
         'Content-Length',
         'X-Share-Password',
       ],
@@ -85,6 +89,8 @@ export function createServer(
 
   // Upload (raw body stream, don't use jsonParser)
   api.post('/vfs/upload', authJwt, streamHandler.handleUpload);
+  api.post('/vfs/upload-chunk', authJwt, streamHandler.handleUploadChunk);
+  api.post('/vfs/upload-complete', authJwt, jsonParser, streamHandler.handleUploadComplete);
 
   // Download (streaming)
   api.get('/vfs/download/:id', authJwt, streamHandler.handleDownload);

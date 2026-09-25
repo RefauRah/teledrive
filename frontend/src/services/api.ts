@@ -116,6 +116,21 @@ const mapFile = (f: any): VFile => ({
   updatedAt: f.updated_at,
 });
 
+const mapShare = (s: any): Share => ({
+  id: s.id,
+  userId: s.user_id ?? s.userId,
+  fileId: s.file_id ?? s.fileId ?? null,
+  folderId: s.folder_id ?? s.folderId ?? null,
+  shareToken: s.share_token ?? s.shareToken ?? '',
+  passwordHash: s.password_hash ?? s.passwordHash ?? null,
+  expiresAt: s.expires_at ?? s.expiresAt ?? null,
+  maxDownloads: s.max_downloads ?? s.maxDownloads ?? null,
+  downloadCount: s.download_count ?? s.downloadCount ?? 0,
+  isActive: Boolean(s.is_active ?? s.isActive),
+  createdAt: s.created_at ?? s.createdAt,
+  updatedAt: s.updated_at ?? s.updatedAt,
+});
+
 // ─── Directory & Folder API ──────────────────────────────────
 export async function listDirectory(folderId: string | null = null): Promise<DirectoryContent> {
   const params: Record<string, string> = {};
@@ -189,35 +204,69 @@ export async function deleteFile(id: string): Promise<void> {
   await api.delete(`/api/vfs/files/${id}`);
 }
 
-// ─── Upload ──────────────────────────────────────────────────
+// ─── Upload (Chunked for Serverless / Large Files up to 2GB) ──
+const CHUNK_SIZE = 512 * 1024; // 512 KB chunks (bypasses Vercel 4.5MB limit)
+
 export async function uploadFile(
   file: File,
   folderId: string | null,
   onProgress: (progress: number) => void,
   abortSignal: AbortSignal
 ): Promise<VFile> {
-  const params: Record<string, string> = {};
-  if (folderId) {
-    params.folder_id = folderId;
+  // Telegram requires isBig = true for files > 10MB
+  const isBig = file.size > 10 * 1024 * 1024;
+  const totalParts = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+  const fileId = `${Date.now()}${Math.floor(Math.random() * 1000000)}`;
+
+  let uploadedBytes = 0;
+
+  for (let partIndex = 0; partIndex < totalParts; partIndex++) {
+    if (abortSignal.aborted) {
+      throw new Error('Upload dibatalkan');
+    }
+
+    const start = partIndex * CHUNK_SIZE;
+    const end = Math.min(file.size, start + CHUNK_SIZE);
+    const chunk = file.slice(start, end);
+
+    await api.post('/api/vfs/upload-chunk', chunk, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Id': fileId,
+        'X-Part-Index': partIndex.toString(),
+        'X-Total-Parts': totalParts.toString(),
+        'X-Is-Big': isBig ? '1' : '0',
+      },
+      signal: abortSignal,
+      onUploadProgress: (event) => {
+        if (event.loaded) {
+          const currentTotalLoaded = uploadedBytes + event.loaded;
+          const percent = Math.min(99, Math.round((currentTotalLoaded / (file.size || 1)) * 100));
+          onProgress(percent);
+        }
+      },
+    });
+
+    uploadedBytes += chunk.size;
+    const percent = Math.min(99, Math.round((uploadedBytes / (file.size || 1)) * 100));
+    onProgress(percent);
   }
 
-  const { data } = await api.post<any>('/api/vfs/upload', file, {
-    params,
-    headers: {
-      'Content-Type': file.type || 'application/octet-stream',
-      'X-File-Name': encodeURIComponent(file.name),
-      'X-File-Size': file.size.toString(),
+  // Complete chunked upload and persist to Telegram & DB
+  const { data } = await api.post<any>(
+    '/api/vfs/upload-complete',
+    {
+      fileId,
+      totalParts,
+      fileName: file.name,
+      fileSize: file.size,
+      folderId: folderId ? parseInt(folderId, 10) : null,
+      isBig,
     },
-    maxContentLength: Infinity,
-    maxBodyLength: Infinity,
-    onUploadProgress: (event) => {
-      if (event.total) {
-        const percent = Math.round((event.loaded * 100) / event.total);
-        onProgress(percent);
-      }
-    },
-    signal: abortSignal,
-  });
+    { signal: abortSignal }
+  );
+
+  onProgress(100);
   return mapFile(data);
 }
 
@@ -253,18 +302,24 @@ export async function downloadFile(id: string): Promise<void> {
 
 // ─── Sharing (Google Drive style) ────────────────────────────
 export async function createShareLink(payload: CreateSharePayload): Promise<Share> {
-  const { data } = await api.post<Share>('/api/vfs/shares', payload);
-  return data;
+  const { data } = await api.post<any>('/api/vfs/shares', {
+    fileId: payload.fileId ? (typeof payload.fileId === 'string' ? parseInt(payload.fileId, 10) : payload.fileId) : undefined,
+    folderId: payload.folderId ? (typeof payload.folderId === 'string' ? parseInt(payload.folderId, 10) : payload.folderId) : undefined,
+    password: payload.password,
+    expiresInDays: payload.expiresInDays,
+    maxDownloads: payload.maxDownloads,
+  });
+  return mapShare(data);
 }
 
 export async function getItemShare(type: 'file' | 'folder', id: string): Promise<Share | null> {
-  const { data } = await api.get<Share | null>(`/api/vfs/shares/item/${type}/${id}`);
-  return data;
+  const { data } = await api.get<any>(`/api/vfs/shares/item/${type}/${id}`);
+  return data ? mapShare(data) : null;
 }
 
 export async function listUserShares(): Promise<Share[]> {
-  const { data } = await api.get<Share[]>('/api/vfs/shares');
-  return data;
+  const { data } = await api.get<any[]>('/api/vfs/shares');
+  return (data || []).map(mapShare);
 }
 
 export async function revokeShare(shareId: number): Promise<void> {
