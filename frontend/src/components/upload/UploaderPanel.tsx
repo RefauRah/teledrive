@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, X, Loader2, CheckCircle2, XCircle, RefreshCw, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, Loader2, CheckCircle2, XCircle, RefreshCw, Upload, AlertCircle } from 'lucide-react';
 import { useUploadStore } from '../../stores/useUploadStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { uploadFile } from '../../services/api';
@@ -30,9 +30,11 @@ export const UploaderPanel: React.FC = () => {
   useEffect(() => {
     const successCount = uploadList.filter(u => u.status === 'success').length;
     const uploadingCount = uploadList.filter(u => u.status === 'uploading' || u.status === 'pending').length;
+    const failedCount = uploadList.filter(u => u.status === 'failed').length;
     
     let timeout: ReturnType<typeof setTimeout>;
-    if (uploadingCount === 0 && successCount > 0) {
+    // Only auto-dismiss completed files when nothing is uploading and no items failed
+    if (uploadingCount === 0 && failedCount === 0 && successCount > 0) {
       timeout = setTimeout(() => {
         clearCompleted();
       }, 4000);
@@ -67,7 +69,8 @@ export const UploaderPanel: React.FC = () => {
       } catch (err: any) {
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         console.error('File upload failed:', err);
-        updateStatus(pendingItem.id, 'failed', err.response?.data?.error || err.message || 'Upload failed');
+        const errMsg = err.response?.data?.error || err.message || 'Upload gagal';
+        updateStatus(pendingItem.id, 'failed', errMsg);
       }
     };
 
@@ -127,7 +130,11 @@ export const UploaderPanel: React.FC = () => {
           {uploadList.map((upload) => (
             <div
               key={upload.id}
-              className="p-2.5 rounded-xl bg-bg-tertiary/40 border border-border-subtle flex flex-col gap-2 relative group hover:border-border-medium transition-all"
+              className={`p-2.5 rounded-xl border flex flex-col gap-2 relative group transition-all ${
+                upload.status === 'failed'
+                  ? 'bg-error/5 border-error/30'
+                  : 'bg-bg-tertiary/40 border-border-subtle hover:border-border-medium'
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -161,22 +168,28 @@ export const UploaderPanel: React.FC = () => {
                       >
                         <RefreshCw size={12} />
                       </button>
-                      <span title={upload.error}>
-                        <XCircle size={16} className="text-error" />
-                      </span>
+                      <XCircle size={16} className="text-error" />
                     </div>
                   )}
                   {upload.status !== 'success' && (
                     <button
                       onClick={() => removeFile(upload.id)}
                       className="p-1 rounded hover:bg-bg-elevated text-text-muted hover:text-error transition-colors"
-                      title="Batalkan"
+                      title="Batalkan / Hapus"
                     >
                       <X size={14} />
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* Explicit error banner for failed upload */}
+              {upload.status === 'failed' && upload.error && (
+                <div className="px-2 py-1.5 rounded-lg bg-error/10 border border-error/20 text-xs text-error flex items-start gap-1.5">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <span className="break-words leading-tight flex-1">{upload.error}</span>
+                </div>
+              )}
 
               {/* Progress bar */}
               {(upload.status === 'uploading' || upload.status === 'pending') && (

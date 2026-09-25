@@ -22,7 +22,7 @@ export function createServer(
   app.use(
     cors({
       origin: '*',
-      allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization', 'X-File-Name'],
+      allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization', 'X-File-Name', 'X-File-Size', 'Content-Length'],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
   );

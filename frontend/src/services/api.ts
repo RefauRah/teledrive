@@ -195,9 +195,11 @@ export async function uploadFile(
     params,
     headers: {
       'Content-Type': file.type || 'application/octet-stream',
-      'X-File-Name': file.name,
-      'Content-Length': file.size.toString(),
+      'X-File-Name': encodeURIComponent(file.name),
+      'X-File-Size': file.size.toString(),
     },
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
     onUploadProgress: (event) => {
       if (event.total) {
         const percent = Math.round((event.loaded * 100) / event.total);

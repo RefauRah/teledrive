@@ -82,7 +82,7 @@ export const useUploadStore = create<UploadState>((set, get) => ({
   clearCompleted: () => {
     const uploads = new Map(get().uploads);
     for (const [key, item] of uploads) {
-      if (item.status === 'success' || item.status === 'failed') {
+      if (item.status === 'success') {
         uploads.delete(key);
       }
     }

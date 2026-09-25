@@ -22,9 +22,13 @@ export class StreamHandler {
         // use raw if decoding fails
       }
 
-      const contentLengthStr = req.headers['content-length'];
+      const contentLengthStr =
+        (req.headers['x-file-size'] as string) ||
+        (req.headers['content-length'] as string) ||
+        (req.query.file_size as string);
+
       if (!contentLengthStr) {
-        res.status(400).json({ error: 'Content-Length header is required' });
+        res.status(400).json({ error: 'File size information (Content-Length or X-File-Size header) is required' });
         return;
       }
 
@@ -36,7 +40,7 @@ export class StreamHandler {
 
       if (fileSize > MAX_UPLOAD_SIZE) {
         res.status(400).json({
-          error: `file size exceeds maximum allowed size of ${MAX_UPLOAD_SIZE} bytes`,
+          error: `file size exceeds maximum allowed size of 2GB (${MAX_UPLOAD_SIZE} bytes)`,
         });
         return;
       }

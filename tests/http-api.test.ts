@@ -120,4 +120,57 @@ describe('HTTP API Endpoints', () => {
     const body = await res.json() as any;
     assert.equal(body.name, 'New Folder');
   });
+
+  it('POST /api/vfs/upload should succeed with X-File-Size and X-File-Name', async () => {
+    const fileContent = 'sample file content';
+    const res = await fetch(`${baseUrl}/api/vfs/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Name': encodeURIComponent('test_video.mp4'),
+        'X-File-Size': Buffer.byteLength(fileContent).toString(),
+        Authorization: `Bearer ${validToken}`,
+      },
+      body: fileContent,
+    });
+
+    assert.equal(res.status, 201);
+    const body = await res.json() as any;
+    assert.equal(body.id, 1);
+  });
+
+  it('POST /api/vfs/upload should reject files exceeding 2GB with 400 error', async () => {
+    const overLimitSize = 3 * 1024 * 1024 * 1024; // 3GB
+    const res = await fetch(`${baseUrl}/api/vfs/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Name': 'huge.bin',
+        'X-File-Size': overLimitSize.toString(),
+        Authorization: `Bearer ${validToken}`,
+      },
+      body: 'small-chunk',
+    });
+
+    assert.equal(res.status, 400);
+    const body = await res.json() as any;
+    assert.match(body.error, /exceeds maximum allowed size/i);
+  });
+
+  it('POST /api/vfs/upload should reject invalid or 0 file size with clear error', async () => {
+    const res = await fetch(`${baseUrl}/api/vfs/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-File-Name': 'unknown.bin',
+        'X-File-Size': '0',
+        Authorization: `Bearer ${validToken}`,
+      },
+      body: 'chunk',
+    });
+
+    assert.equal(res.status, 400);
+    const body = await res.json() as any;
+    assert.match(body.error, /size/i);
+  });
 });
