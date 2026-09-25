@@ -1,5 +1,15 @@
 import axios from 'axios';
-import type { User, AuthTransaction, VFolder, VFile, BreadcrumbItem, DirectoryContent } from '../domain/types';
+import type {
+  User,
+  AuthTransaction,
+  VFolder,
+  VFile,
+  BreadcrumbItem,
+  DirectoryContent,
+  Share,
+  CreateSharePayload,
+  PublicShareData,
+} from '../domain/types';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
@@ -20,11 +30,11 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: on 401, clear token and redirect to /login
+// Response interceptor: on 401, clear token and redirect to /login (exempt public /share routes)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !window.location.pathname.startsWith('/share/')) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
       if (window.location.pathname !== '/login') {
@@ -240,3 +250,100 @@ export async function downloadFile(id: string): Promise<void> {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+// ─── Sharing (Google Drive style) ────────────────────────────
+export async function createShareLink(payload: CreateSharePayload): Promise<Share> {
+  const { data } = await api.post<Share>('/api/vfs/shares', payload);
+  return data;
+}
+
+export async function getItemShare(type: 'file' | 'folder', id: string): Promise<Share | null> {
+  const { data } = await api.get<Share | null>(`/api/vfs/shares/item/${type}/${id}`);
+  return data;
+}
+
+export async function listUserShares(): Promise<Share[]> {
+  const { data } = await api.get<Share[]>('/api/vfs/shares');
+  return data;
+}
+
+export async function revokeShare(shareId: number): Promise<void> {
+  await api.delete(`/api/vfs/shares/${shareId}`);
+}
+
+// ─── Public Share Endpoints (No login required) ───────────────
+export async function getPublicShare(token: string, password?: string): Promise<PublicShareData> {
+  const headers: Record<string, string> = {};
+  if (password) {
+    headers['X-Share-Password'] = password;
+  }
+  const { data } = await api.get<PublicShareData>(`/api/public/shares/${token}`, { headers });
+  return data;
+}
+
+export async function downloadPublicShare(
+  token: string,
+  fileId?: number,
+  password?: string
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (password) {
+    headers['X-Share-Password'] = password;
+  }
+  const params: Record<string, any> = {};
+  if (fileId) {
+    params.file_id = fileId;
+  }
+
+  const { data, headers: resHeaders } = await api.get(`/api/public/shares/${token}/download`, {
+    headers,
+    params,
+    responseType: 'blob',
+  });
+
+  const contentDisposition = resHeaders['content-disposition'];
+  let filename = 'download';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    if (match) {
+      try {
+        filename = decodeURIComponent(match[1]);
+      } catch {
+        filename = match[1];
+      }
+    }
+  }
+
+  const url = window.URL.createObjectURL(new Blob([data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function getPublicShareBlobUrl(
+  token: string,
+  fileId?: number,
+  password?: string
+): Promise<string> {
+  const headers: Record<string, string> = {};
+  if (password) {
+    headers['X-Share-Password'] = password;
+  }
+  const params: Record<string, any> = {};
+  if (fileId) {
+    params.file_id = fileId;
+  }
+
+  const { data } = await api.get(`/api/public/shares/${token}/download`, {
+    headers,
+    params,
+    responseType: 'blob',
+  });
+
+  return window.URL.createObjectURL(new Blob([data]));
+}
+

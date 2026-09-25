@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Download, Trash2, ChevronLeft, ChevronRight, FolderInput } from 'lucide-react';
+import { X, Download, Trash2, ChevronLeft, ChevronRight, FolderInput, Share2 } from 'lucide-react';
 import type { VFile } from '../../domain/types';
 import { getFileBlobUrl, downloadFile } from '../../services/api';
 
@@ -12,6 +12,7 @@ interface LightboxModalProps {
   onCaptionSave: (id: string, caption: string) => void;
   onDelete: (id: string) => void;
   onMove?: (file: VFile) => void;
+  onShare?: (file: VFile) => void;
 }
 
 const formatDate = (dateStr: string) => {
@@ -34,6 +35,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   onCaptionSave,
   onDelete,
   onMove,
+  onShare,
 }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -220,6 +222,15 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onShare && (
+            <button
+              onClick={() => onShare(file)}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-accent-warm hover:text-text-inverse flex items-center justify-center text-white transition-colors btn-press"
+              title="Bagikan Tautan"
+            >
+              <Share2 size={18} />
+            </button>
+          )}
           {onMove && (
             <button
               onClick={() => onMove(file)}

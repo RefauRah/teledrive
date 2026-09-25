@@ -8,9 +8,11 @@ import { TursoUserRepository } from './repository/turso-user.repository.js';
 import { TursoFolderRepository } from './repository/turso-folder.repository.js';
 import { TursoFileRepository } from './repository/turso-file.repository.js';
 import { TursoAuthRepository } from './repository/turso-auth.repository.js';
+import { TursoShareRepository } from './repository/turso-share.repository.js';
 import { AuthUsecase } from './usecase/auth.usecase.js';
 import { VFSUsecase } from './usecase/vfs.usecase.js';
 import { StreamUsecase } from './usecase/stream.usecase.js';
+import { ShareUsecase } from './usecase/share.usecase.js';
 import { createServer } from './delivery/http/server.js';
 
 async function bootstrap(): Promise<void> {
@@ -48,11 +50,11 @@ async function bootstrap(): Promise<void> {
     cfg.encryptionKey
   );
 
-  // 5. Initialize Repositories
   const userRepo = new TursoUserRepository(db);
   const folderRepo = new TursoFolderRepository(db);
   const fileRepo = new TursoFileRepository(db);
   const authRepo = new TursoAuthRepository(db);
+  const shareRepo = new TursoShareRepository(db);
 
   // 6. Initialize Usecases & Helpers
   const authUC = new AuthUsecase(authRepo, userRepo, cfg, clientPool);
@@ -61,9 +63,10 @@ async function bootstrap(): Promise<void> {
   const uploader = new Uploader();
   const downloader = new Downloader();
   const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader);
+  const shareUC = new ShareUsecase(shareRepo, fileRepo, folderRepo, userRepo, clientPool, downloader);
 
   // 7. Setup HTTP server
-  const app = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC);
+  const app = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC);
 
   const server = app.listen(cfg.port, () => {
     console.log(`Server starting on port ${cfg.port}...`);

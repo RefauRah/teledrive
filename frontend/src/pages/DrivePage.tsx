@@ -12,6 +12,7 @@ import { EditCaptionModal } from '../components/gallery/EditCaptionModal';
 import { MoveFileModal } from '../components/gallery/MoveFileModal';
 import { VaultModal } from '../components/gallery/VaultModal';
 import { ConfirmModal } from '../components/gallery/ConfirmModal';
+import { ShareModal } from '../components/share/ShareModal';
 import { SelectionToolbar } from '../components/gallery/SelectionToolbar';
 import { ContextMenu, type ContextMenuState } from '../components/gallery/ContextMenu';
 import { MobileNav } from '../components/layout/MobileNav';
@@ -69,6 +70,7 @@ export const MemoriesPage: React.FC = () => {
   // Modals state
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
+  const [sharingItem, setSharingItem] = useState<{ item: VFile | VFolder; type: 'file' | 'folder' } | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<VFolder | null>(null);
   const [renamingFile, setRenamingFile] = useState<VFile | null>(null);
   const [editingCaptionFile, setEditingCaptionFile] = useState<VFile | null>(null);
@@ -525,12 +527,14 @@ export const MemoriesPage: React.FC = () => {
           setLightboxFile(file);
           setLightboxIndex(idx);
         }}
+        onShareFile={(file) => setSharingItem({ item: file, type: 'file' })}
         onEditCaption={(file) => setEditingCaptionFile(file)}
         onMoveFile={(file) => setMovingFile(file)}
         onRenameFile={(file) => setRenamingFile(file)}
         onDownloadFile={(file) => downloadFile(file.id)}
         onDeleteFile={(file) => handleDeleteFile(file.id)}
         onOpenFolder={(folderId) => handleFolderNavigate(folderId)}
+        onShareFolder={(folder) => setSharingItem({ item: folder, type: 'folder' })}
         onRenameFolder={(folder) => setRenamingFolder(folder)}
         onDeleteFolder={(folder) => handleDeleteAlbum(folder)}
         onUploadToFolder={(folderId) => {
@@ -561,6 +565,7 @@ export const MemoriesPage: React.FC = () => {
           onCaptionSave={handleCaptionSave}
           onDelete={handleDeleteFile}
           onMove={(file) => setMovingFile(file)}
+          onShare={(file) => setSharingItem({ item: file, type: 'file' })}
         />
       )}
 
@@ -649,6 +654,14 @@ export const MemoriesPage: React.FC = () => {
           onClose={() => setConfirmDialog(null)}
         />
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={sharingItem !== null}
+        onClose={() => setSharingItem(null)}
+        item={sharingItem?.item ?? null}
+        type={sharingItem?.type ?? 'file'}
+      />
     </div>
   );
 };

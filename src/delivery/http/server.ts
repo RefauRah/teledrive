@@ -5,16 +5,19 @@ import fs from 'fs';
 import type { AuthUsecase } from '../../usecase/auth.usecase.js';
 import type { VFSUsecase } from '../../usecase/vfs.usecase.js';
 import type { StreamUsecase } from '../../usecase/stream.usecase.js';
+import type { ShareUsecase } from '../../usecase/share.usecase.js';
 import { AuthHandler } from './handler-auth.js';
 import { VFSHandler } from './handler-vfs.js';
 import { StreamHandler } from './handler-stream.js';
+import { ShareHandler } from './handler-share.js';
 import { jwtMiddleware, errorHandler } from './middleware.js';
 
 export function createServer(
   jwtSecret: string,
   authUsecase: AuthUsecase,
   vfsUsecase: VFSUsecase,
-  streamUsecase: StreamUsecase
+  streamUsecase: StreamUsecase,
+  shareUsecase?: ShareUsecase
 ): express.Express {
   const app = express();
 
@@ -22,7 +25,16 @@ export function createServer(
   app.use(
     cors({
       origin: '*',
-      allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization', 'X-File-Name', 'X-File-Size', 'Content-Length'],
+      allowedHeaders: [
+        'Origin',
+        'Content-Type',
+        'Accept',
+        'Authorization',
+        'X-File-Name',
+        'X-File-Size',
+        'Content-Length',
+        'X-Share-Password',
+      ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
   );
@@ -30,6 +42,7 @@ export function createServer(
   const authHandler = new AuthHandler(authUsecase);
   const vfsHandler = new VFSHandler(vfsUsecase);
   const streamHandler = new StreamHandler(streamUsecase);
+  const shareHandler = shareUsecase ? new ShareHandler(shareUsecase) : null;
 
   const authJwt = jwtMiddleware(jwtSecret);
 
@@ -75,6 +88,18 @@ export function createServer(
 
   // Download (streaming)
   api.get('/vfs/download/:id', authJwt, streamHandler.handleDownload);
+
+  // Share routes (protected)
+  if (shareHandler) {
+    api.post('/vfs/shares', authJwt, jsonParser, shareHandler.handleCreateShare);
+    api.get('/vfs/shares', authJwt, shareHandler.handleListUserShares);
+    api.get('/vfs/shares/item/:type/:id', authJwt, shareHandler.handleGetItemShare);
+    api.delete('/vfs/shares/:id', authJwt, shareHandler.handleRevokeShare);
+
+    // Public share routes (no auth needed)
+    api.get('/public/shares/:token', shareHandler.handleGetPublicShare);
+    api.get('/public/shares/:token/download', shareHandler.handleDownloadPublicShare);
+  }
 
   app.use('/api', api);
 

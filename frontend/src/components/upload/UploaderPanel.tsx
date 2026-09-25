@@ -69,7 +69,20 @@ export const UploaderPanel: React.FC = () => {
       } catch (err: any) {
         if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         console.error('File upload failed:', err);
-        const errMsg = err.response?.data?.error || err.message || 'Upload gagal';
+
+        let errMsg = 'Upload gagal';
+        if (err.response?.status === 413) {
+          errMsg = 'Batas ukuran request terlampaui (Error 413 Payload Too Large). Jika di-deploy di Vercel Serverless, terdapat batasan upload 4.5MB. Jalankan di server Node.js/Docker untuk upload hingga 2GB.';
+        } else if (typeof err.response?.data?.error === 'string') {
+          errMsg = err.response.data.error;
+        } else if (typeof err.response?.data?.message === 'string') {
+          errMsg = err.response.data.message;
+        } else if (typeof err.response?.data === 'string' && err.response.data.trim()) {
+          errMsg = err.response.data.replace(/<[^>]*>?/gm, '').slice(0, 150);
+        } else if (typeof err.message === 'string') {
+          errMsg = err.message;
+        }
+
         updateStatus(pendingItem.id, 'failed', errMsg);
       }
     };
@@ -187,7 +200,9 @@ export const UploaderPanel: React.FC = () => {
               {upload.status === 'failed' && upload.error && (
                 <div className="px-2 py-1.5 rounded-lg bg-error/10 border border-error/20 text-xs text-error flex items-start gap-1.5">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                  <span className="break-words leading-tight flex-1">{upload.error}</span>
+                  <span className="break-words leading-tight flex-1">
+                    {typeof upload.error === 'string' ? upload.error : JSON.stringify(upload.error)}
+                  </span>
                 </div>
               )}
 

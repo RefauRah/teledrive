@@ -8,9 +8,11 @@ import { TursoUserRepository } from '../src/repository/turso-user.repository.js'
 import { TursoFolderRepository } from '../src/repository/turso-folder.repository.js';
 import { TursoFileRepository } from '../src/repository/turso-file.repository.js';
 import { TursoAuthRepository } from '../src/repository/turso-auth.repository.js';
+import { TursoShareRepository } from '../src/repository/turso-share.repository.js';
 import { AuthUsecase } from '../src/usecase/auth.usecase.js';
 import { VFSUsecase } from '../src/usecase/vfs.usecase.js';
 import { StreamUsecase } from '../src/usecase/stream.usecase.js';
+import { ShareUsecase } from '../src/usecase/share.usecase.js';
 import { createServer } from '../src/delivery/http/server.js';
 
 let appInstance: any = null;
@@ -42,6 +44,7 @@ async function getApp() {
     const folderRepo = new TursoFolderRepository(db);
     const fileRepo = new TursoFileRepository(db);
     const authRepo = new TursoAuthRepository(db);
+    const shareRepo = new TursoShareRepository(db);
 
     const authUC = new AuthUsecase(authRepo, userRepo, cfg, clientPool);
     const vfsUC = new VFSUsecase(folderRepo, fileRepo, clientPool);
@@ -49,13 +52,21 @@ async function getApp() {
     const uploader = new Uploader();
     const downloader = new Downloader();
     const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader);
+    const shareUC = new ShareUsecase(shareRepo, fileRepo, folderRepo, userRepo, clientPool, downloader);
 
-    appInstance = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC);
+    appInstance = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC);
     return appInstance;
   })();
 
   return initPromise;
 }
+
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
 
 export default async function handler(req: any, res: any) {
   const app = await getApp();

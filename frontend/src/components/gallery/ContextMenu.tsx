@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Sparkles,
   ChevronRight,
+  Share2,
 } from 'lucide-react';
 import type { VFile, VFolder } from '../../domain/types';
 
@@ -30,12 +31,14 @@ interface ContextMenuProps {
   state: ContextMenuState | null;
   onClose: () => void;
   onOpenFile?: (file: VFile, index: number) => void;
+  onShareFile?: (file: VFile) => void;
   onEditCaption?: (file: VFile) => void;
   onMoveFile?: (file: VFile) => void;
   onRenameFile?: (file: VFile) => void;
   onDownloadFile?: (file: VFile) => void;
   onDeleteFile?: (file: VFile) => void;
   onOpenFolder?: (folderId: string) => void;
+  onShareFolder?: (folder: VFolder) => void;
   onRenameFolder?: (folder: VFolder) => void;
   onDeleteFolder?: (folder: VFolder) => void;
   onUploadToFolder?: (folderId: string) => void;
@@ -49,12 +52,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   state,
   onClose,
   onOpenFile,
+  onShareFile,
   onEditCaption,
   onMoveFile,
   onRenameFile,
   onDownloadFile,
   onDeleteFile,
   onOpenFolder,
+  onShareFolder,
   onRenameFolder,
   onDeleteFolder,
   onUploadToFolder,
@@ -154,6 +159,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           <button
             onClick={() => {
               onClose();
+              onShareFile?.(target.file);
+            }}
+            className="w-full px-3 py-2 text-left text-xs font-medium text-text-primary hover:text-accent-warm hover:bg-accent-warm/10 rounded-xl flex items-center gap-2.5 transition-colors group cursor-pointer"
+          >
+            <Share2 size={15} className="text-accent-warm group-hover:scale-110 transition-transform" />
+            <span>Bagikan File</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
               onEditCaption?.(target.file);
             }}
             className="w-full px-3 py-2 text-left text-xs font-medium text-text-primary hover:text-accent-warm hover:bg-accent-warm/10 rounded-xl flex items-center gap-2.5 transition-colors group cursor-pointer"
@@ -230,6 +246,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             <FolderOpen size={15} className="text-accent-warm group-hover:scale-110 transition-transform" />
             <span>Buka Album</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
+              onShareFolder?.(target.folder);
+            }}
+            className="w-full px-3 py-2 text-left text-xs font-medium text-text-primary hover:text-accent-warm hover:bg-accent-warm/10 rounded-xl flex items-center gap-2.5 transition-colors group cursor-pointer"
+          >
+            <Share2 size={15} className="text-accent-warm group-hover:scale-110 transition-transform" />
+            <span>Bagikan Album</span>
           </button>
 
           <button

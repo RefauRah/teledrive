@@ -55,3 +55,55 @@ export interface UploadQueueItem {
   error?: string;
   abortController: AbortController;
 }
+
+export interface Share {
+  id: number;
+  userId: number;
+  fileId: number | null;
+  folderId: number | null;
+  shareToken: string;
+  passwordHash: string | null;
+  expiresAt: string | null;
+  maxDownloads: number | null;
+  downloadCount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSharePayload {
+  fileId?: string | number | null;
+  folderId?: string | number | null;
+  password?: string | null;
+  expiresInDays?: number | null;
+  maxDownloads?: number | null;
+}
+
+export interface PublicShareItem {
+  id: number;
+  name: string;
+  size?: number;
+  mimeType?: string;
+  caption?: string;
+  createdAt: string;
+  files?: Array<{
+    id: number;
+    name: string;
+    size: number;
+    mimeType: string;
+    createdAt: string;
+  }>;
+}
+
+export interface PublicShareData {
+  shareToken: string;
+  type: 'file' | 'folder';
+  isPasswordProtected: boolean;
+  isAuthorized: boolean;
+  expiresAt: string | null;
+  maxDownloads: number | null;
+  downloadCount: number;
+  ownerName: string;
+  item: PublicShareItem | null;
+}
+
