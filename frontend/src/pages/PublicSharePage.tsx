@@ -274,29 +274,26 @@ export const PublicSharePage: React.FC = () => {
       <div className="absolute -bottom-32 right-10 w-[500px] h-[350px] bg-accent-rose/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Top Header */}
-      <header className="px-6 py-4 border-b border-border-subtle glass-strong sticky top-0 z-30 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl gradient-warm flex items-center justify-center shadow-lg shadow-accent-warm/25 group-hover:scale-105 transition-transform text-white font-extrabold text-base">
-            A
-          </div>
-          <div className="flex flex-col">
-            <span className="font-extrabold text-lg tracking-tight gradient-warm-text leading-tight">
+      <header className="sticky top-0 z-30 w-full glass-strong relative border-b border-border-subtle">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+          <Link to="/" className="flex items-center gap-2.5 cursor-pointer group shrink-0">
+            <div className="w-8 h-8 rounded-xl gradient-warm flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-accent-warm/20 group-hover:shadow-accent-warm/30 transition-shadow">
+              A
+            </div>
+            <h1 className="text-lg font-extrabold gradient-warm-text tracking-wide">
               Aetheria
-            </span>
-            <span className="text-[10px] text-text-muted font-medium tracking-wider uppercase">
-              Vault Berkas Bersama
-            </span>
-          </div>
-        </Link>
+            </h1>
+          </Link>
 
-        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary bg-bg-tertiary/60 px-3.5 py-1.5 rounded-full border border-border-subtle shadow-sm">
-          <Sparkles size={14} className="text-accent-warm animate-pulse" />
-          <span>Didukung oleh Cloud Telegram</span>
+          <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary bg-bg-tertiary/60 px-3.5 py-1.5 rounded-full border border-border-subtle shadow-sm">
+            <Sparkles size={14} className="text-accent-warm" />
+            <span>Vault Berkas Bersama</span>
+          </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10 my-auto">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex items-center justify-center min-h-[calc(100vh-4rem)] relative z-10 w-full">
         <div className="w-full max-w-2xl animate-fade-in-up">
           {loading ? (
             <div className="p-12 rounded-3xl glass-strong border border-border-medium shadow-2xl flex flex-col items-center justify-center gap-4 text-center">
@@ -524,11 +521,6 @@ export const PublicSharePage: React.FC = () => {
           ) : null}
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="px-6 py-4 text-center text-xs text-text-muted border-t border-border-subtle glass">
-        Aetheria • Infinite Memory & Media Vault • Didukung oleh Cloud Telegram
-      </footer>
     </div>
   );
 };
