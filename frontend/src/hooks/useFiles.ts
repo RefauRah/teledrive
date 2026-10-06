@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../stores/useAuthStore';
 import {
   listDirectory,
   listMemories,
@@ -14,24 +15,29 @@ import {
 } from '../services/api';
 
 export function useDirectory(folderId: string | null = null) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: ['directory', folderId],
     queryFn: () => listDirectory(folderId),
+    enabled: isAuthenticated,
   });
 }
 
 export function useBreadcrumbs(folderId: string | null = null) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: ['breadcrumbs', folderId],
     queryFn: () => (folderId ? getBreadcrumbApi(folderId) : Promise.resolve([])),
-    enabled: !!folderId,
+    enabled: isAuthenticated && !!folderId,
   });
 }
 
 export function useMemories() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return useQuery({
     queryKey: ['memories'],
     queryFn: listMemories,
+    enabled: isAuthenticated,
   });
 }
 

@@ -53,6 +53,8 @@ export const MemoriesPage: React.FC = () => {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [movingFiles, setMovingFiles] = useState<VFile[]>([]);
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   // Custom confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -104,8 +106,6 @@ export const MemoriesPage: React.FC = () => {
       navigate('/login', { replace: true });
     }
   }, [isAuthenticated, navigate]);
-
-  if (!isAuthenticated) return null;
 
   // Folder navigation
   const handleFolderNavigate = (folderId: string | null) => {
@@ -290,8 +290,6 @@ export const MemoriesPage: React.FC = () => {
   // Batch actions
   const selectedFilesList = filteredFiles.filter((f) => selectedFileIds.has(f.id));
   const selectedFoldersList = filteredFolders.filter((f) => selectedFolderIds.has(f.id));
-  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
-  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   const handleBatchDownload = async () => {
     try {
@@ -391,6 +389,10 @@ export const MemoriesPage: React.FC = () => {
       target: { type: 'canvas' },
     });
   };
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useIsFetching, useIsMutating } from '@tanstack/react-query';
+import { useQueryClient, useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useViewModeStore } from '../../stores/useViewModeStore';
 import {
@@ -31,6 +31,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const { user, logout } = useAuthStore();
   const { viewMode, toggleViewMode } = useViewModeStore();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const initial = user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U';
 
@@ -40,6 +41,13 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    queryClient.clear();
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -206,10 +214,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                   )}
                   <button
                     className="w-full px-4 py-2.5 text-left text-sm text-error/80 hover:text-error hover:bg-error/5 transition-colors flex items-center gap-3 font-medium cursor-pointer"
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      logout();
-                    }}
+                    onClick={handleLogout}
                   >
                     <LogOut size={16} />
                     Keluar

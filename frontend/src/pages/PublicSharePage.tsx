@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Download,
   Lock,
-  HardDrive,
   FileText,
   Folder,
   AlertCircle,
@@ -11,6 +10,15 @@ import {
   Music,
   Sparkles,
   KeyRound,
+  Copy,
+  Check,
+  Archive,
+  Film,
+  Image as ImageIcon,
+  User as UserIcon,
+  Calendar,
+  Layers,
+  CheckCircle2,
 } from 'lucide-react';
 import type { PublicShareData } from '../domain/types';
 import { getPublicShare, downloadPublicShare, getPublicShareBlobUrl } from '../services/api';
@@ -24,11 +32,87 @@ const formatBytes = (bytes: number = 0, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+const getFileCategory = (name: string, mimeType?: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  const mime = mimeType || '';
+
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'iso', 'xz'].includes(ext) || mime.includes('zip') || mime.includes('compressed') || mime.includes('tar')) {
+    return {
+      type: 'archive',
+      label: `Berkas Arsip (.${ext.toUpperCase()})`,
+      color: 'from-amber-500 to-orange-600',
+      textColor: 'text-amber-400',
+      bgColor: 'bg-amber-500/15',
+      borderColor: 'border-amber-500/30',
+      icon: Archive,
+    };
+  }
+
+  if (mime.startsWith('video/') || ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv', 'wmv'].includes(ext)) {
+    return {
+      type: 'video',
+      label: `Berkas Video (.${ext.toUpperCase()})`,
+      color: 'from-purple-500 to-indigo-600',
+      textColor: 'text-purple-400',
+      bgColor: 'bg-purple-500/15',
+      borderColor: 'border-purple-500/30',
+      icon: Film,
+    };
+  }
+
+  if (mime.startsWith('audio/') || ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(ext)) {
+    return {
+      type: 'audio',
+      label: `Berkas Audio (.${ext.toUpperCase()})`,
+      color: 'from-emerald-500 to-teal-600',
+      textColor: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/15',
+      borderColor: 'border-emerald-500/30',
+      icon: Music,
+    };
+  }
+
+  if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) {
+    return {
+      type: 'image',
+      label: `Berkas Gambar (.${ext.toUpperCase()})`,
+      color: 'from-blue-500 to-cyan-600',
+      textColor: 'text-blue-400',
+      bgColor: 'bg-blue-500/15',
+      borderColor: 'border-blue-500/30',
+      icon: ImageIcon,
+    };
+  }
+
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext) || mime.includes('pdf') || mime.includes('document')) {
+    return {
+      type: 'document',
+      label: `Dokumen (.${ext.toUpperCase()})`,
+      color: 'from-rose-500 to-pink-600',
+      textColor: 'text-rose-400',
+      bgColor: 'bg-rose-500/15',
+      borderColor: 'border-rose-500/30',
+      icon: FileText,
+    };
+  }
+
+  return {
+    type: 'file',
+    label: `Berkas .${ext.toUpperCase() || 'BIN'}`,
+    color: 'from-accent-warm to-accent-rose',
+    textColor: 'text-accent-warm',
+    bgColor: 'bg-accent-warm/15',
+    borderColor: 'border-accent-warm/30',
+    icon: FileText,
+  };
+};
+
 export const PublicSharePage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<PublicShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Password state
   const [password, setPassword] = useState('');
@@ -112,15 +196,24 @@ export const PublicSharePage: React.FC = () => {
     }
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const fileCategory = data?.item ? getFileCategory(data.item.name, data.item.mimeType) : null;
+  const CategoryIcon = fileCategory ? fileCategory.icon : FileText;
+
   const renderMediaPreview = () => {
     if (!data?.item || data.type !== 'file') return null;
     const mime = data.item.mimeType || '';
 
     if (loadingPreview) {
       return (
-        <div className="w-full h-64 rounded-2xl bg-bg-primary/50 border border-border-subtle flex flex-col items-center justify-center gap-2 text-text-muted">
+        <div className="w-full h-56 rounded-2xl bg-bg-tertiary/40 border border-border-subtle flex flex-col items-center justify-center gap-2 text-text-muted">
           <Loader2 size={24} className="animate-spin text-accent-warm" />
-          <span className="text-xs">Memuat pratinjau...</span>
+          <span className="text-xs">Memuat pratinjau media...</span>
         </div>
       );
     }
@@ -128,115 +221,132 @@ export const PublicSharePage: React.FC = () => {
     if (previewBlobUrl) {
       if (mime.startsWith('image/')) {
         return (
-          <div className="w-full max-h-96 rounded-2xl overflow-hidden bg-bg-primary/50 border border-border-subtle flex items-center justify-center p-2">
+          <div className="w-full max-h-96 rounded-2xl overflow-hidden bg-bg-tertiary/40 border border-border-subtle flex items-center justify-center p-3">
             <img
               src={previewBlobUrl}
               alt={data.item.name}
-              className="max-h-88 object-contain rounded-xl shadow-lg"
+              className="max-h-80 object-contain rounded-xl shadow-xl"
             />
           </div>
         );
       }
       if (mime.startsWith('video/')) {
         return (
-          <div className="w-full rounded-2xl overflow-hidden bg-bg-primary border border-border-subtle shadow-xl">
+          <div className="w-full rounded-2xl overflow-hidden bg-bg-tertiary border border-border-subtle shadow-2xl">
             <video
               src={previewBlobUrl}
               controls
-              className="w-full max-h-96 object-contain"
+              className="w-full max-h-96 object-contain bg-black"
             />
           </div>
         );
       }
       if (mime.startsWith('audio/')) {
         return (
-          <div className="w-full p-6 rounded-2xl bg-bg-primary/60 border border-border-subtle flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-accent-warm/15 text-accent-warm flex items-center justify-center border border-accent-warm/20">
+          <div className="w-full p-6 rounded-2xl bg-bg-tertiary/50 border border-border-subtle flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/25 shadow-lg shadow-emerald-500/10">
               <Music size={32} />
             </div>
-            <audio src={previewBlobUrl} controls className="w-full" />
+            <audio src={previewBlobUrl} controls className="w-full max-w-md" />
           </div>
         );
       }
     }
 
-    // Default icon preview
+    // Default rich icon presentation for archives, binaries, etc.
     return (
-      <div className="w-full py-10 rounded-2xl bg-bg-primary/30 border border-border-subtle flex flex-col items-center justify-center gap-3 text-text-muted">
-        <div className="w-16 h-16 rounded-2xl bg-bg-tertiary flex items-center justify-center text-text-secondary border border-border-medium">
-          <FileText size={32} />
+      <div className="w-full py-10 px-6 rounded-2xl bg-bg-tertiary/30 border border-border-subtle flex flex-col items-center justify-center gap-3 text-center relative overflow-hidden">
+        <div className={`w-20 h-20 rounded-3xl ${fileCategory?.bgColor || 'bg-accent-warm/15'} ${fileCategory?.textColor || 'text-accent-warm'} flex items-center justify-center border ${fileCategory?.borderColor || 'border-accent-warm/25'} shadow-xl mb-1`}>
+          <CategoryIcon size={40} />
         </div>
-        <p className="text-xs text-text-muted">Pratinjau langsung tidak tersedia untuk format ini</p>
+        <p className="text-sm font-semibold text-text-primary">{fileCategory?.label}</p>
+        <p className="text-xs text-text-muted max-w-sm">
+          Berkas siap diunduh secara langsung dengan kecepatan tinggi melalui Cloud Telegram.
+        </p>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col justify-between selection:bg-accent-warm selection:text-text-inverse">
-      {/* Top Navigation */}
-      <header className="px-6 py-4 border-b border-border-subtle bg-bg-secondary/40 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl gradient-warm flex items-center justify-center shadow-lg shadow-accent-warm/20 group-hover:scale-105 transition-transform">
-            <HardDrive size={18} className="text-text-inverse" />
+    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col justify-between selection:bg-accent-warm selection:text-text-inverse relative overflow-hidden">
+      {/* Background Ambient Glows */}
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-accent-warm/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -bottom-32 right-10 w-[500px] h-[350px] bg-accent-rose/10 rounded-full blur-[120px] pointer-events-none" />
+
+      {/* Top Header */}
+      <header className="px-6 py-4 border-b border-border-subtle glass-strong sticky top-0 z-30 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-xl gradient-warm flex items-center justify-center shadow-lg shadow-accent-warm/25 group-hover:scale-105 transition-transform text-white font-extrabold text-base">
+            A
           </div>
-          <span className="font-bold text-lg tracking-tight text-text-primary">
-            Tele<span className="text-accent-warm">Drive</span>
-          </span>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-lg tracking-tight gradient-warm-text leading-tight">
+              Aetheria
+            </span>
+            <span className="text-[10px] text-text-muted font-medium tracking-wider uppercase">
+              Vault Berkas Bersama
+            </span>
+          </div>
         </Link>
 
-        <div className="flex items-center gap-2 text-xs text-text-muted bg-bg-tertiary/50 px-3 py-1.5 rounded-full border border-border-subtle">
-          <Sparkles size={13} className="text-accent-gold" />
+        <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary bg-bg-tertiary/60 px-3.5 py-1.5 rounded-full border border-border-subtle shadow-sm">
+          <Sparkles size={14} className="text-accent-warm animate-pulse" />
           <span>Didukung oleh Cloud Telegram</span>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-auto">
-        <div className="w-full max-w-xl animate-fade-in-up">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10 my-auto">
+        <div className="w-full max-w-2xl animate-fade-in-up">
           {loading ? (
-            <div className="p-12 rounded-3xl bg-bg-secondary/60 border border-border-medium shadow-2xl flex flex-col items-center justify-center gap-3 backdrop-blur-xl">
-              <Loader2 size={32} className="animate-spin text-accent-warm" />
-              <p className="text-sm text-text-secondary">Menyiapkan berkas bersama...</p>
+            <div className="p-12 rounded-3xl glass-strong border border-border-medium shadow-2xl flex flex-col items-center justify-center gap-4 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-accent-warm/15 text-accent-warm flex items-center justify-center border border-accent-warm/25">
+                <Loader2 size={28} className="animate-spin text-accent-warm" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-text-primary">Menyiapkan Berkas...</h3>
+                <p className="text-xs text-text-secondary mt-1">Mengambil data dari Aetheria Cloud Vault</p>
+              </div>
             </div>
           ) : error ? (
             /* Error Card */
-            <div className="p-8 rounded-3xl bg-bg-secondary/60 border border-border-medium shadow-2xl flex flex-col items-center text-center gap-4 backdrop-blur-xl">
-              <div className="w-16 h-16 rounded-2xl bg-error/15 text-error flex items-center justify-center border border-error/20">
+            <div className="p-8 sm:p-10 rounded-3xl glass-strong border border-border-medium shadow-2xl flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-error/15 text-error flex items-center justify-center border border-error/25 shadow-lg shadow-error/10">
                 <AlertCircle size={32} />
               </div>
               <h2 className="text-xl font-bold text-text-primary">Tautan Tidak Tersedia</h2>
               <p className="text-sm text-text-secondary max-w-md">{error}</p>
               <Link
                 to="/"
-                className="mt-2 px-5 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-xs font-semibold text-text-primary border border-border-subtle transition-colors"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-xs font-bold text-text-primary border border-border-subtle transition-all btn-press"
               >
                 Kembali ke Beranda
               </Link>
             </div>
           ) : data?.isPasswordProtected && !data.isAuthorized ? (
             /* Password Lock Form */
-            <div className="p-8 rounded-3xl bg-bg-secondary/70 border border-border-medium shadow-2xl backdrop-blur-xl flex flex-col gap-6">
+            <div className="p-8 sm:p-10 rounded-3xl glass-strong border border-border-medium shadow-2xl flex flex-col gap-6">
               <div className="flex flex-col items-center text-center gap-2">
-                <div className="w-16 h-16 rounded-2xl bg-accent-gold/15 text-accent-gold flex items-center justify-center border border-accent-gold/20 mb-2 animate-bounce-subtle">
+                <div className="w-16 h-16 rounded-2xl bg-accent-gold/15 text-accent-gold flex items-center justify-center border border-accent-gold/25 mb-1 shadow-lg shadow-accent-gold/10">
                   <Lock size={32} />
                 </div>
                 <h2 className="text-xl font-bold text-text-primary">Tautan Dilindungi Kata Sandi</h2>
-                <p className="text-xs text-text-secondary max-w-sm">
-                  Pemilik berkas ini (<strong className="text-text-primary">{data.ownerName}</strong>) telah mengunci akses dengan kata sandi rahasia.
+                <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
+                  Pemilik berkas (<strong className="text-text-primary font-semibold">{data.ownerName}</strong>) telah mengamankan akses dengan kata sandi rahasia.
                 </p>
               </div>
 
               <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-4">
                 {passwordError && (
-                  <div className="p-3 rounded-xl bg-error/10 border border-error/20 text-xs text-error flex items-center gap-2">
-                    <AlertCircle size={16} />
+                  <div className="p-3.5 rounded-xl bg-error/10 border border-error/20 text-xs text-error flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0" />
                     <span>{passwordError}</span>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
-                    <KeyRound size={14} /> Masukkan Kata Sandi
+                  <label className="text-xs font-bold text-text-secondary flex items-center gap-1.5">
+                    <KeyRound size={14} className="text-accent-gold" /> Masukkan Kata Sandi
                   </label>
                   <input
                     type="password"
@@ -244,14 +354,14 @@ export const PublicSharePage: React.FC = () => {
                     placeholder="Ketik kata sandi..."
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-bg-primary border border-border-medium text-sm text-text-primary focus:outline-none focus:border-accent-warm focus:ring-2 focus:ring-accent-warm/20 transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-bg-tertiary border border-border-medium text-sm text-text-primary focus:outline-none focus:border-accent-warm focus:ring-2 focus:ring-accent-warm/20 transition-all font-medium"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={verifyingPassword || !password.trim()}
-                  className="w-full py-3 rounded-xl gradient-warm text-text-inverse font-bold text-sm flex items-center justify-center gap-2 hover:opacity-95 active:scale-98 transition-all disabled:opacity-50 shadow-lg shadow-accent-warm/20"
+                  className="w-full py-3.5 rounded-xl gradient-warm text-white font-bold text-sm flex items-center justify-center gap-2 hover:opacity-95 active:scale-98 transition-all disabled:opacity-50 shadow-xl shadow-accent-warm/25 btn-press"
                 >
                   {verifyingPassword ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -264,105 +374,146 @@ export const PublicSharePage: React.FC = () => {
             </div>
           ) : data?.item ? (
             /* Authorized View (File or Folder) */
-            <div className="rounded-3xl bg-bg-secondary/70 border border-border-medium shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col">
+            <div className="rounded-3xl glass-strong border border-border-medium shadow-2xl overflow-hidden flex flex-col">
               {/* Header Info */}
-              <div className="p-6 border-b border-border-subtle flex items-start justify-between gap-4 bg-bg-tertiary/20">
-                <div className="flex items-start gap-3.5 min-w-0">
-                  <div className="w-12 h-12 rounded-2xl bg-accent-warm/15 text-accent-warm flex items-center justify-center border border-accent-warm/20 shrink-0">
-                    {data.type === 'folder' ? <Folder size={24} /> : <FileText size={24} />}
+              <div className="p-6 sm:p-7 border-b border-border-subtle flex items-start justify-between gap-4 bg-bg-secondary/40">
+                <div className="flex items-start gap-4 min-w-0">
+                  <div className={`w-14 h-14 rounded-2xl ${fileCategory?.bgColor || 'bg-accent-warm/15'} ${fileCategory?.textColor || 'text-accent-warm'} flex items-center justify-center border ${fileCategory?.borderColor || 'border-accent-warm/25'} shrink-0 shadow-lg`}>
+                    {data.type === 'folder' ? <Folder size={28} /> : <CategoryIcon size={28} />}
                   </div>
-                  <div className="min-w-0">
-                    <h1 className="text-lg font-bold text-text-primary break-words leading-snug">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-xl sm:text-2xl font-bold text-text-primary break-words leading-snug">
                       {data.item.name}
                     </h1>
-                    <div className="flex items-center gap-3 text-xs text-text-muted mt-1 flex-wrap">
-                      <span>Dibagikan oleh <strong className="text-text-secondary">{data.ownerName}</strong></span>
+
+                    {/* Metadata Chips */}
+                    <div className="flex items-center gap-2.5 text-xs text-text-secondary mt-2 flex-wrap font-medium">
+                      <span className="flex items-center gap-1.5 bg-bg-tertiary/70 px-2.5 py-1 rounded-lg border border-border-subtle">
+                        <UserIcon size={12} className="text-accent-warm" />
+                        <span>Oleh <strong className="text-text-primary font-semibold">{data.ownerName}</strong></span>
+                      </span>
+
                       {data.item.size !== undefined && (
-                        <span>• {formatBytes(data.item.size)}</span>
+                        <span className="flex items-center gap-1.5 bg-bg-tertiary/70 px-2.5 py-1 rounded-lg border border-border-subtle">
+                          <Layers size={12} className="text-accent-rose" />
+                          <strong className="text-text-primary">{formatBytes(data.item.size)}</strong>
+                        </span>
                       )}
-                      <span>• {new Date(data.item.createdAt).toLocaleDateString()}</span>
+
+                      <span className="flex items-center gap-1.5 bg-bg-tertiary/70 px-2.5 py-1 rounded-lg border border-border-subtle">
+                        <Calendar size={12} className="text-text-muted" />
+                        <span>{new Date(data.item.createdAt).toLocaleDateString()}</span>
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Body Content */}
-              <div className="p-6 flex flex-col gap-6">
+              <div className="p-6 sm:p-7 flex flex-col gap-6">
                 {data.type === 'file' ? (
                   <>
-                    {/* Media Preview Box */}
+                    {/* Media Preview / Visual Presentation Box */}
                     {renderMediaPreview()}
 
-                    {/* Caption if available */}
+                    {/* Caption / Note if available */}
                     {data.item.caption && (
-                      <div className="p-3.5 rounded-xl bg-bg-tertiary/40 border border-border-subtle text-xs text-text-secondary">
-                        <p className="font-semibold text-text-primary mb-1">Catatan:</p>
-                        <p className="whitespace-pre-wrap">{data.item.caption}</p>
+                      <div className="p-4 rounded-2xl bg-bg-tertiary/50 border border-border-subtle text-xs text-text-secondary flex flex-col gap-1">
+                        <p className="font-bold text-text-primary flex items-center gap-1.5">
+                          <FileText size={13} className="text-accent-warm" />
+                          Catatan Berkas:
+                        </p>
+                        <p className="whitespace-pre-wrap leading-relaxed text-text-primary/90">{data.item.caption}</p>
                       </div>
                     )}
 
-                    {/* Big Download Button */}
-                    <button
-                      onClick={() => handleDownload()}
-                      disabled={downloadingId === 'main'}
-                      className="w-full py-3.5 rounded-2xl gradient-warm text-text-inverse font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 hover:opacity-95 active:scale-98 transition-all disabled:opacity-75 shadow-xl shadow-accent-warm/25"
-                    >
-                      {downloadingId === 'main' ? (
-                        <>
-                          <Loader2 size={20} className="animate-spin" />
-                          <span>Mengunduh Berkas...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Download size={20} />
-                          <span>Unduh Berkas ({formatBytes(data.item.size)})</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Big Action CTA Buttons */}
+                    <div className="flex flex-col gap-3">
+                      <button
+                        onClick={() => handleDownload()}
+                        disabled={downloadingId === 'main'}
+                        className="w-full py-4 rounded-2xl gradient-warm text-white font-extrabold text-base flex items-center justify-center gap-2.5 hover:opacity-95 active:scale-98 transition-all disabled:opacity-75 shadow-xl shadow-accent-warm/25 btn-press cursor-pointer"
+                      >
+                        {downloadingId === 'main' ? (
+                          <>
+                            <Loader2 size={20} className="animate-spin" />
+                            <span>Memulai Pengunduhan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download size={20} />
+                            <span>Unduh Berkas Sekarang ({formatBytes(data.item.size)})</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Secondary Action: Copy Link */}
+                      <div className="flex items-center justify-between pt-1 text-xs text-text-muted">
+                        <div className="flex items-center gap-1.5 text-success">
+                          <CheckCircle2 size={13} />
+                          <span>Penyimpanan Aman Telegram Cloud</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyLink}
+                          className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary px-3 py-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-elevated border border-border-subtle transition-colors cursor-pointer"
+                        >
+                          {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                          <span>{copied ? 'Tautan Tersalin!' : 'Salin Tautan'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   /* Folder File Explorer List */
                   <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between text-xs text-text-secondary font-medium">
+                    <div className="flex items-center justify-between text-xs font-bold text-text-secondary">
                       <span>Daftar Isi Folder ({data.item.files?.length || 0} berkas)</span>
                     </div>
 
-                    <div className="flex flex-col gap-2 max-h-80 overflow-y-auto no-scrollbar">
+                    <div className="flex flex-col gap-2 max-h-96 overflow-y-auto no-scrollbar">
                       {data.item.files && data.item.files.length > 0 ? (
-                        data.item.files.map((file) => (
-                          <div
-                            key={file.id}
-                            className="p-3 rounded-xl bg-bg-tertiary/40 border border-border-subtle hover:border-border-medium flex items-center justify-between gap-3 transition-all"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <FileText size={18} className="text-accent-warm shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-text-primary truncate">
-                                  {file.name}
-                                </p>
-                                <p className="text-[11px] text-text-muted">
-                                  {formatBytes(file.size)}
-                                </p>
-                              </div>
-                            </div>
-
-                            <button
-                              onClick={() => handleDownload(file.id)}
-                              disabled={downloadingId === file.id}
-                              className="px-3 py-1.5 rounded-lg bg-bg-elevated hover:bg-accent-warm hover:text-text-inverse text-xs font-semibold text-text-secondary transition-all flex items-center gap-1.5 shrink-0"
+                        data.item.files.map((file) => {
+                          const cat = getFileCategory(file.name, file.mimeType);
+                          const Icon = cat.icon;
+                          return (
+                            <div
+                              key={file.id}
+                              className="p-3.5 rounded-2xl bg-bg-tertiary/40 border border-border-subtle hover:border-border-medium flex items-center justify-between gap-3 transition-all"
                             >
-                              {downloadingId === file.id ? (
-                                <Loader2 size={13} className="animate-spin" />
-                              ) : (
-                                <Download size={13} />
-                              )}
-                              Unduh
-                            </button>
-                          </div>
-                        ))
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`w-9 h-9 rounded-xl ${cat.bgColor} ${cat.textColor} flex items-center justify-center border ${cat.borderColor} shrink-0`}>
+                                  <Icon size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-text-primary truncate">
+                                    {file.name}
+                                  </p>
+                                  <p className="text-[11px] text-text-muted mt-0.5">
+                                    {formatBytes(file.size)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => handleDownload(file.id)}
+                                disabled={downloadingId === file.id}
+                                className="px-3.5 py-2 rounded-xl bg-bg-elevated hover:bg-accent-warm hover:text-white text-xs font-bold text-text-primary transition-all flex items-center gap-1.5 shrink-0 btn-press cursor-pointer"
+                              >
+                                {downloadingId === file.id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <Download size={13} />
+                                )}
+                                Unduh
+                              </button>
+                            </div>
+                          );
+                        })
                       ) : (
-                        <div className="py-8 text-center text-xs text-text-muted">
-                          Folder ini kosong.
+                        <div className="py-10 text-center text-xs text-text-muted">
+                          Folder ini belum memiliki berkas.
                         </div>
                       )}
                     </div>
@@ -375,9 +526,10 @@ export const PublicSharePage: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 text-center text-xs text-text-muted border-t border-border-subtle">
-        TeleDrive • Penyimpanan Awan Bebas Batas berbasis Telegram
+      <footer className="px-6 py-4 text-center text-xs text-text-muted border-t border-border-subtle glass">
+        Aetheria • Infinite Memory & Media Vault • Didukung oleh Cloud Telegram
       </footer>
     </div>
   );
 };
+
