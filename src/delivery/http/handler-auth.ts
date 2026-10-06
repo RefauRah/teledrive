@@ -2,6 +2,23 @@ import type { Request, Response, NextFunction } from 'express';
 import type { AuthUsecase } from '../../usecase/auth.usecase.js';
 import { getAuthUserId } from './middleware.js';
 
+export function normalizePhoneNumber(rawPhone: string): string {
+  const cleaned = rawPhone.replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  if (cleaned.startsWith('08')) {
+    return '+62' + cleaned.slice(1);
+  }
+  if (cleaned.startsWith('628')) {
+    return '+' + cleaned;
+  }
+  if (cleaned.startsWith('8')) {
+    return '+62' + cleaned;
+  }
+  return '+' + cleaned;
+}
+
 export class AuthHandler {
   private authUsecase: AuthUsecase;
 
@@ -17,7 +34,8 @@ export class AuthHandler {
         return;
       }
 
-      const result = await this.authUsecase.sendCode(phone);
+      const normalizedPhone = normalizePhoneNumber(phone);
+      const result = await this.authUsecase.sendCode(normalizedPhone);
       res.status(200).json(result);
     } catch (err: any) {
       res.status(400).json({ error: err.message || 'Failed to send code' });

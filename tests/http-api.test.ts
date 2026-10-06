@@ -90,6 +90,22 @@ describe('HTTP API Endpoints', () => {
     assert.equal(body.transaction_id, 'mock-tx-123');
   });
 
+  it('POST /api/auth/send-code should normalize local 08xx or 8xx numbers to +628xx', async () => {
+    const res1 = await fetch(`${baseUrl}/api/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '08123456789' }),
+    });
+    assert.equal(res1.status, 200);
+
+    const res2 = await fetch(`${baseUrl}/api/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '8123456789' }),
+    });
+    assert.equal(res2.status, 200);
+  });
+
   it('GET /api/vfs/list without token should return 401 Unauthorized', async () => {
     const res = await fetch(`${baseUrl}/api/vfs/list`);
     assert.equal(res.status, 401);
