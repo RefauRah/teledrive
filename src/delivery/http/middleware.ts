@@ -12,19 +12,25 @@ declare global {
 
 export function jwtMiddleware(jwtSecret: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
+    let token: string | undefined;
+
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
+    if (authHeader) {
+      const parts = authHeader.split(' ');
+      if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+        token = parts[1];
+      }
+    }
+
+    if (!token && typeof req.query.token === 'string') {
+      token = req.query.token;
+    }
+
+    if (!token) {
       res.status(401).json({ error: 'missing authorization header' });
       return;
     }
 
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-      res.status(401).json({ error: 'invalid authorization header format' });
-      return;
-    }
-
-    const token = parts[1];
     try {
       const decoded = jwt.verify(token, jwtSecret) as { user_id: number };
       if (!decoded || typeof decoded.user_id !== 'number') {

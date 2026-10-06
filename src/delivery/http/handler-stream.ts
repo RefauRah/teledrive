@@ -133,7 +133,11 @@ export class StreamHandler {
       const file = await this.streamUsecase.getFileMetadata(userId, fileId);
 
       res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${file.name.replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(file.name)}`
+      );
+      res.setHeader('Accept-Ranges', 'bytes');
       if (file.size > 0) {
         res.setHeader('Content-Length', file.size.toString());
       }

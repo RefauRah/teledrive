@@ -271,33 +271,31 @@ export async function uploadFile(
 }
 
 // ─── Download & Preview ──────────────────────────────────────
+export function getFileDownloadUrl(id: string): string {
+  const token = localStorage.getItem('auth_token');
+  const baseUrl = import.meta.env.VITE_API_URL || '';
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${baseUrl}/api/vfs/download/${id}${tokenQuery}`;
+}
+
 export async function getFileBlobUrl(id: string): Promise<string> {
-  const { data } = await api.get(`/api/vfs/download/${id}`, {
-    responseType: 'blob',
-  });
-  return window.URL.createObjectURL(new Blob([data]));
+  // Return direct authenticated streaming URL for instant HTML5 media playback (video, audio, image)
+  return getFileDownloadUrl(id);
 }
 
 export async function downloadFile(id: string): Promise<void> {
-  const { data, headers } = await api.get(`/api/vfs/download/${id}`, {
-    responseType: 'blob',
-  });
-
-  const contentDisposition = headers['content-disposition'];
-  let filename = 'download';
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?(.+?)"?$/);
-    if (match) filename = match[1];
-  }
-
-  const url = window.URL.createObjectURL(new Blob([data]));
+  // Trigger direct native browser streaming download directly to disk without RAM buffering
+  const url = getFileDownloadUrl(id);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', filename);
+  link.setAttribute('download', '');
+  link.setAttribute('target', '_blank');
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    link.remove();
+  }, 200);
 }
 
 // ─── Sharing (Google Drive style) ────────────────────────────
@@ -336,47 +334,31 @@ export async function getPublicShare(token: string, password?: string): Promise<
   return data;
 }
 
+export function getPublicDownloadUrl(token: string, fileId?: number, password?: string): string {
+  const baseUrl = import.meta.env.VITE_API_URL || '';
+  const params = new URLSearchParams();
+  if (fileId) params.append('file_id', fileId.toString());
+  if (password) params.append('password', password);
+  const qs = params.toString();
+  return `${baseUrl}/api/public/shares/${token}/download${qs ? `?${qs}` : ''}`;
+}
+
 export async function downloadPublicShare(
   token: string,
   fileId?: number,
   password?: string
 ): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (password) {
-    headers['X-Share-Password'] = password;
-  }
-  const params: Record<string, any> = {};
-  if (fileId) {
-    params.file_id = fileId;
-  }
-
-  const { data, headers: resHeaders } = await api.get(`/api/public/shares/${token}/download`, {
-    headers,
-    params,
-    responseType: 'blob',
-  });
-
-  const contentDisposition = resHeaders['content-disposition'];
-  let filename = 'download';
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-    if (match) {
-      try {
-        filename = decodeURIComponent(match[1]);
-      } catch {
-        filename = match[1];
-      }
-    }
-  }
-
-  const url = window.URL.createObjectURL(new Blob([data]));
+  const url = getPublicDownloadUrl(token, fileId, password);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', filename);
+  link.setAttribute('download', '');
+  link.setAttribute('target', '_blank');
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    link.remove();
+  }, 200);
 }
 
 export async function getPublicShareBlobUrl(
@@ -384,21 +366,7 @@ export async function getPublicShareBlobUrl(
   fileId?: number,
   password?: string
 ): Promise<string> {
-  const headers: Record<string, string> = {};
-  if (password) {
-    headers['X-Share-Password'] = password;
-  }
-  const params: Record<string, any> = {};
-  if (fileId) {
-    params.file_id = fileId;
-  }
-
-  const { data } = await api.get(`/api/public/shares/${token}/download`, {
-    headers,
-    params,
-    responseType: 'blob',
-  });
-
-  return window.URL.createObjectURL(new Blob([data]));
+  return getPublicDownloadUrl(token, fileId, password);
 }
+
 

@@ -73,14 +73,16 @@ export class Downloader {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const downloadIter = client.iterDownload({
-          file: inputLocation,
-          dcId,
-          fileSize,
-          chunkSize: 512 * 1024,
+          file: msg.media,
           requestSize: 512 * 1024,
         });
 
         for await (const chunk of downloadIter) {
+          // If the downstream client disconnected, stop iterating
+          if ('destroyed' in writer && (writer as any).destroyed) {
+            break;
+          }
+
           if (!writer.write(chunk)) {
             // Respect backpressure
             await new Promise((resolve) => writer.once('drain', resolve));
