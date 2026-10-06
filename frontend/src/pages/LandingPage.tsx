@@ -115,12 +115,12 @@ export const LandingPage: React.FC = () => {
 
         {/* Main Headline */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight max-w-4xl leading-[1.1] animate-fade-in-up">
-          Simpan Semua Kenangan & Berkas Anda Tanpa Batas.
+          Simpan Semua Kenangan & Berkas Anda dengan Aman.
         </h1>
 
         {/* Subtitle */}
         <p className="mt-6 text-base sm:text-lg lg:text-xl text-text-secondary max-w-2xl font-normal leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          Aetheria adalah ruang penyimpanan awan aman untuk menyimpan ribuan foto resolusi tinggi, video 4K, musik, dan dokumen penting dengan kapasitas tak terbatas.
+          Aetheria adalah ruang penyimpanan awan aman dengan kuota gratis 10 GB untuk menyimpan ribuan foto resolusi tinggi, video 4K, musik, dan dokumen penting.
         </p>
 
         {/* CTA Buttons */}
@@ -129,7 +129,7 @@ export const LandingPage: React.FC = () => {
             onClick={handleStart}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl gradient-warm text-white font-extrabold text-base shadow-2xl shadow-accent-warm/35 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer btn-press"
           >
-            <span>{isAuthenticated ? 'Buka Galeri Vault' : 'Mulai Sekarang — Gratis'}</span>
+            <span>{isAuthenticated ? 'Buka Galeri Vault' : 'Mulai Sekarang — Gratis 10 GB'}</span>
             <ArrowRight size={18} />
           </button>
 
@@ -145,8 +145,8 @@ export const LandingPage: React.FC = () => {
         {/* Key Metrics Strip */}
         <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
           <div className="p-4 rounded-2xl glass-strong border border-border-subtle flex flex-col items-center justify-center">
-            <span className="text-2xl sm:text-3xl font-black text-emerald-400">Unlimited ∞</span>
-            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Kapasitas Cloud</span>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-400">10 GB</span>
+            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Kuota Penyimpanan</span>
           </div>
 
           <div className="p-4 rounded-2xl glass-strong border border-border-subtle flex flex-col items-center justify-center">
@@ -391,8 +391,8 @@ export const LandingPage: React.FC = () => {
 
               <div className="p-5 rounded-2xl bg-bg-secondary/70 border border-border-subtle flex flex-col gap-2">
                 <HardDrive size={22} className="text-accent-purple" />
-                <h4 className="font-bold text-sm text-text-primary">Kapasitas Maksimal</h4>
-                <p className="text-xs text-text-muted">Unlimited Storage & 2GB per File</p>
+                <h4 className="font-bold text-sm text-text-primary">Kapasitas Penyimpanan</h4>
+                <p className="text-xs text-text-muted">10 GB Gratis (Unlimited untuk Akun Whitelist) & 2GB per File</p>
               </div>
             </div>
           </div>
@@ -414,10 +414,10 @@ export const LandingPage: React.FC = () => {
           <div className="p-6 rounded-2xl glass-strong border border-border-subtle">
             <h3 className="font-bold text-base text-text-primary flex items-center gap-2">
               <HelpCircle size={18} className="text-accent-warm shrink-0" />
-              Apakah penyimpanan berkas benar-benar tanpa batas kuota?
+              Berapa kapasitas penyimpanan untuk akun saya?
             </h3>
             <p className="text-xs sm:text-sm text-text-secondary mt-2.5 leading-relaxed pl-6">
-              Ya. Aetheria memanfaatkan penyimpanan awan terdistribusi yang tidak membatasi total kuota penyimpanan berkas Anda, sehingga Anda bebas mengunggah foto, video, dan arsip tanpa batas.
+              Setiap pengguna mendapatkan kuota penyimpanan awan sebesar <strong>10 GB</strong> secara gratis untuk menyimpan foto, video, dan dokumen. Pengguna dengan kebutuhan khusus dapat didaftarkan dalam program Whitelist untuk akses kapasitas tanpa batas (Unlimited).
             </p>
           </div>
 
