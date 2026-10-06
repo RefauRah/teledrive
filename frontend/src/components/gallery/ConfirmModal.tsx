@@ -77,7 +77,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           {isDanger && (
             <div className="mt-4 px-3.5 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-              <span>Pesan & media di Telegram juga akan dihapus permanen.</span>
+              <span>Media pada penyimpanan cloud juga akan dihapus permanen.</span>
             </div>
           )}
         </div>

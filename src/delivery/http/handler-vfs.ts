@@ -304,7 +304,7 @@ export class VFSHandler {
       const result = await this.vfsUsecase.syncWithTelegram(userId);
       res.status(200).json(result);
     } catch (err: any) {
-      res.status(500).json({ error: err.message || 'Failed to sync with Telegram' });
+      res.status(500).json({ error: err.message || 'Failed to sync cloud data' });
     }
   };
 }

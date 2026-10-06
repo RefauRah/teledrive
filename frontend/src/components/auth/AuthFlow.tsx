@@ -337,7 +337,7 @@ export default function AuthFlow() {
               </div>
               <h2 className="text-lg font-semibold text-text-primary">Kode Verifikasi</h2>
               <p className="text-text-secondary text-xs mt-1">
-                Masukkan kode yang dikirim ke Telegram{' '}
+                Masukkan kode yang dikirim ke nomor{' '}
                 <strong className="text-text-primary font-mono font-bold">{fullSubmittedPhone}</strong>
               </p>
             </div>

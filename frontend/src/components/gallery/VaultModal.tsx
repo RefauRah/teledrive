@@ -63,12 +63,12 @@ export const VaultModal: React.FC<VaultModalProps> = ({
       if (result.added > 0) {
         setSyncStatus({
           type: 'success',
-          message: `Berhasil disinkronkan! ${result.added} file baru diimpor dari Pesan Tersimpan Telegram.`,
+          message: `Berhasil disinkronkan! ${result.added} berkas baru diimpor ke vault.`,
         });
       } else {
         setSyncStatus({
           type: 'success',
-          message: 'Semua media sudah sinkron dengan Pesan Tersimpan Telegram.',
+          message: 'Semua media sudah sinkron dengan penyimpanan cloud Aetheria.',
         });
       }
       if (onRefresh) {
@@ -77,7 +77,7 @@ export const VaultModal: React.FC<VaultModalProps> = ({
     } catch (err: any) {
       setSyncStatus({
         type: 'error',
-        message: err.response?.data?.message || 'Gagal menyinkronkan data dengan Telegram.',
+        message: err.response?.data?.message || 'Gagal menyinkronkan data cloud.',
       });
     }
   };
@@ -234,7 +234,7 @@ export const VaultModal: React.FC<VaultModalProps> = ({
               <Layers size={14} className="text-accent-rose" />
               Cloud Storage Backend
             </span>
-            <span className="font-semibold text-text-primary">Telegram MTProto Cloud</span>
+            <span className="font-semibold text-text-primary">Aetheria Cloud Storage</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -261,7 +261,7 @@ export const VaultModal: React.FC<VaultModalProps> = ({
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-bg-secondary hover:bg-bg-tertiary text-text-secondary hover:text-text-primary text-xs font-semibold border border-border-subtle transition-all cursor-pointer ${
               syncMutation.isPending ? 'opacity-70 cursor-not-allowed' : 'active:scale-95'
             }`}
-            title="Pindai media baru dari Saved Messages Telegram"
+            title="Pindai dan sinkronkan data cloud"
           >
             {syncMutation.isPending ? (
               <Loader2 size={14} className="animate-spin text-accent-warm" />

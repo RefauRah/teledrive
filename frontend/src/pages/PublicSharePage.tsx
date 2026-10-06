@@ -261,7 +261,7 @@ export const PublicSharePage: React.FC = () => {
         </div>
         <p className="text-sm font-semibold text-text-primary">{fileCategory?.label}</p>
         <p className="text-xs text-text-muted max-w-sm">
-          Berkas siap diunduh secara langsung dengan kecepatan tinggi melalui Cloud Telegram.
+          Berkas siap diunduh secara langsung dengan kecepatan tinggi melalui Aetheria Cloud.
         </p>
       </div>
     );
@@ -448,7 +448,7 @@ export const PublicSharePage: React.FC = () => {
                       <div className="flex items-center justify-between pt-1 text-xs text-text-muted">
                         <div className="flex items-center gap-1.5 text-success">
                           <CheckCircle2 size={13} />
-                          <span>Penyimpanan Aman Telegram Cloud</span>
+                          <span>Penyimpanan Aman Aetheria Cloud</span>
                         </div>
 
                         <button
