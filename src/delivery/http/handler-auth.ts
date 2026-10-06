@@ -61,6 +61,49 @@ export class AuthHandler {
     }
   };
 
+  public handleExportQrCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.authUsecase.exportQrCode();
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to export QR code' });
+    }
+  };
+
+  public handleCheckQrStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const txId = (req.query.transaction_id as string) || (req.body?.transaction_id as string);
+      if (!txId) {
+        res.status(400).json({ error: 'transaction_id is required' });
+        return;
+      }
+
+      const result = await this.authUsecase.checkQrStatus(txId);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to check QR status' });
+    }
+  };
+
+  public handleQrPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { transaction_id, password } = req.body || {};
+      if (!transaction_id) {
+        res.status(400).json({ error: 'transaction_id is required' });
+        return;
+      }
+      if (!password) {
+        res.status(400).json({ error: 'password is required' });
+        return;
+      }
+
+      const result = await this.authUsecase.submitQrPassword(transaction_id, password);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(401).json({ error: err.message || '2FA password authentication failed' });
+    }
+  };
+
   public handleUpdateProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = getAuthUserId(req);

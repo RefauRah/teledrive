@@ -59,6 +59,9 @@ export function createServer(
   // Auth routes (public)
   api.post('/auth/send-code', jsonParser, authHandler.handleSendCode);
   api.post('/auth/sign-in', jsonParser, authHandler.handleSignIn);
+  api.post('/auth/qr-code', authHandler.handleExportQrCode);
+  api.get('/auth/qr-status', authHandler.handleCheckQrStatus);
+  api.post('/auth/qr-password', jsonParser, authHandler.handleQrPassword);
 
   // Auth routes (protected)
   api.put('/auth/profile', authJwt, jsonParser, authHandler.handleUpdateProfile);

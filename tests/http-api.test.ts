@@ -50,6 +50,25 @@ describe('HTTP API Endpoints', () => {
         token: jwt.sign({ user_id: 1 }, jwtSecret),
         user: { id: 1, phone: '+628123', first_name: 'Test' },
       }),
+      exportQrCode: async () => ({
+        transaction_id: 'mock-qr-tx-456',
+        qr_url: 'tg://login?token=abc123token',
+        expires: Math.floor(Date.now() / 1000) + 300,
+      }),
+      checkQrStatus: async (txId: string) => {
+        if (txId === 'mock-qr-tx-456') {
+          return {
+            status: 'success',
+            token: jwt.sign({ user_id: 1 }, jwtSecret),
+            user: { id: 1, phone: '+628123', first_name: 'Test' },
+          };
+        }
+        return { status: 'expired' };
+      },
+      submitQrPassword: async (txId: string, password: string) => ({
+        token: jwt.sign({ user_id: 1 }, jwtSecret),
+        user: { id: 1, phone: '+628123', first_name: 'Test' },
+      }),
       updateProfile: async () => ({ id: 1, first_name: 'Updated' }),
     };
 
@@ -230,5 +249,33 @@ describe('HTTP API Endpoints', () => {
     assert.equal(res.status, 400);
     const body = await res.json() as any;
     assert.match(body.error, /size/i);
+  });
+
+  it('POST /api/auth/qr-code should export QR login token', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/qr-code`, { method: 'POST' });
+    assert.equal(res.status, 200);
+    const body = await res.json() as any;
+    assert.equal(body.transaction_id, 'mock-qr-tx-456');
+    assert.match(body.qr_url, /^tg:\/\/login\?token=/);
+  });
+
+  it('GET /api/auth/qr-status should return status of QR session', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/qr-status?transaction_id=mock-qr-tx-456`);
+    assert.equal(res.status, 200);
+    const body = await res.json() as any;
+    assert.equal(body.status, 'success');
+    assert.ok(body.token);
+  });
+
+  it('POST /api/auth/qr-password should submit 2FA password for QR session', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/qr-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transaction_id: 'mock-qr-tx-456', password: 'my_2fa_secret' }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json() as any;
+    assert.ok(body.token);
+    assert.equal(body.user.phone, '+628123');
   });
 });

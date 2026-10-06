@@ -79,6 +79,51 @@ export async function signIn(
   };
 }
 
+export interface QrCodeResponse {
+  transaction_id: string;
+  qr_url: string;
+  expires: number;
+}
+
+export interface QrStatusResponse {
+  status: 'pending' | 'success' | 'password_required' | 'expired' | 'error';
+  qr_url?: string;
+  expires?: number;
+  token?: string;
+  user?: User;
+  message?: string;
+}
+
+export async function exportQrCode(): Promise<QrCodeResponse> {
+  const { data } = await api.post<QrCodeResponse>('/api/auth/qr-code', {}, { timeout: 15000 });
+  return data;
+}
+
+export async function checkQrStatus(transactionId: string): Promise<QrStatusResponse> {
+  const { data } = await api.get<any>('/api/auth/qr-status', {
+    params: { transaction_id: transactionId },
+    timeout: 15000,
+  });
+  return {
+    ...data,
+    user: data.user ? mapUser(data.user) : undefined,
+  };
+}
+
+export async function submitQrPassword(
+  transactionId: string,
+  password: string
+): Promise<{ token: string; user: User }> {
+  const { data } = await api.post<{ token: string; user: any }>('/api/auth/qr-password', {
+    transaction_id: transactionId,
+    password,
+  }, { timeout: 15000 });
+  return {
+    token: data.token,
+    user: mapUser(data.user),
+  };
+}
+
 export async function updateProfile(
   firstName: string,
   lastName: string,
