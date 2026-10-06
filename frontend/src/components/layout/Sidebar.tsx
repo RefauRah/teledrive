@@ -181,7 +181,7 @@ export default function Sidebar({ onUploadFile, isOpen = false, onClose, isColla
             <span className="text-[11px] font-bold text-primary">10 GB</span>
           </div>
           <p className="text-[11px] text-on-surface-variant/80 mb-2">
-            Batas kuota akun gratis: 10 GB
+            Batas kuota penyimpanan: 10 GB
           </p>
           <div className="w-full h-1.5 bg-surface-dim rounded-full overflow-hidden">
             <div className="h-full bg-primary rounded-full" style={{ width: '10%' }} />

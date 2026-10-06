@@ -392,7 +392,7 @@ export const LandingPage: React.FC = () => {
               <div className="p-5 rounded-2xl bg-bg-secondary/70 border border-border-subtle flex flex-col gap-2">
                 <HardDrive size={22} className="text-accent-purple" />
                 <h4 className="font-bold text-sm text-text-primary">Kapasitas Penyimpanan</h4>
-                <p className="text-xs text-text-muted">10 GB Gratis (Unlimited untuk Akun Whitelist) & 2GB per File</p>
+                <p className="text-xs text-text-muted">10 GB Cloud Storage & 2 GB per File</p>
               </div>
             </div>
           </div>
@@ -417,7 +417,7 @@ export const LandingPage: React.FC = () => {
               Berapa kapasitas penyimpanan untuk akun saya?
             </h3>
             <p className="text-xs sm:text-sm text-text-secondary mt-2.5 leading-relaxed pl-6">
-              Setiap pengguna mendapatkan kuota penyimpanan awan sebesar <strong>10 GB</strong> secara gratis untuk menyimpan foto, video, dan dokumen. Pengguna dengan kebutuhan khusus dapat didaftarkan dalam program Whitelist untuk akses kapasitas tanpa batas (Unlimited).
+              Setiap pengguna mendapatkan kuota penyimpanan awan sebesar <strong>10 GB</strong> secara gratis untuk menyimpan ribuan foto, video, musik, dan dokumen penting.
             </p>
           </div>
 
