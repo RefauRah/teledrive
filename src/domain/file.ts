@@ -38,4 +38,5 @@ export interface FileRepository {
   permanentDeleteAllTrashed(userId: number): Promise<void>;
   listStarred(userId: number): Promise<File[]>;
   listAll(userId: number): Promise<File[]>;
+  getTotalStorageUsed(userId: number): Promise<number>;
 }

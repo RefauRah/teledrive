@@ -62,7 +62,7 @@ async function bootstrap(): Promise<void> {
 
   const uploader = new Uploader();
   const downloader = new Downloader();
-  const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader);
+  const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader, cfg);
   const shareUC = new ShareUsecase(shareRepo, fileRepo, folderRepo, userRepo, clientPool, downloader);
 
   // 7. Setup HTTP server

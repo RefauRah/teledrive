@@ -5,11 +5,19 @@ import type { UserRepository } from '../domain/user.js';
 import type { ClientPool } from '../infrastructure/telegram/client-pool.js';
 import type { Uploader } from '../infrastructure/telegram/uploader.js';
 import type { Downloader } from '../infrastructure/telegram/downloader.js';
+import { type Config, isUserUnlimitedStorage, DEFAULT_STORAGE_QUOTA_BYTES } from '../infrastructure/config/config.js';
 
 export interface DownloadResult {
   fileName: string;
   mimeType: string;
   fileSize: number;
+}
+
+export interface StorageUsageInfo {
+  usedBytes: number;
+  quotaBytes: number;
+  isUnlimited: boolean;
+  usedPercentage: number;
 }
 
 export class StreamUsecase {
@@ -18,19 +26,63 @@ export class StreamUsecase {
   private clientPool: ClientPool;
   private uploader: Uploader;
   private downloader: Downloader;
+  private config?: Config;
 
   constructor(
     fileRepo: FileRepository,
     userRepo: UserRepository,
     clientPool: ClientPool,
     uploader: Uploader,
-    downloader: Downloader
+    downloader: Downloader,
+    config?: Config
   ) {
     this.fileRepo = fileRepo;
     this.userRepo = userRepo;
     this.clientPool = clientPool;
     this.uploader = uploader;
     this.downloader = downloader;
+    this.config = config;
+  }
+
+  public async getStorageUsage(userId: number): Promise<StorageUsageInfo> {
+    const user = await this.userRepo.getById(userId);
+    const usedBytes = await this.fileRepo.getTotalStorageUsed(userId);
+    const quotaBytes = this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES;
+    const isUnlimited = this.config ? isUserUnlimitedStorage(this.config, user?.phone) : false;
+
+    const usedPercentage = isUnlimited
+      ? 0
+      : Math.min(100, Math.round((usedBytes / quotaBytes) * 10000) / 100);
+
+    return {
+      usedBytes,
+      quotaBytes,
+      isUnlimited,
+      usedPercentage,
+    };
+  }
+
+  public async validateStorageQuota(userId: number, incomingFileSize: number): Promise<void> {
+    const user = await this.userRepo.getById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (this.config && isUserUnlimitedStorage(this.config, user.phone)) {
+      return; // Akun whitelisted unlimited
+    }
+
+    const currentUsed = await this.fileRepo.getTotalStorageUsed(userId);
+    const quotaBytes = this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES;
+
+    if (currentUsed + incomingFileSize > quotaBytes) {
+      const usedGB = (currentUsed / (1024 * 1024 * 1024)).toFixed(2);
+      const quotaGB = (quotaBytes / (1024 * 1024 * 1024)).toFixed(0);
+      const fileMB = (incomingFileSize / (1024 * 1024)).toFixed(2);
+      throw new Error(
+        `Kapasitas penyimpanan ${quotaGB} GB terlampaui. Total terpakai: ${usedGB} GB / ${quotaGB} GB. Ukuran berkas: ${fileMB} MB. Hapus beberapa berkas untuk melanjutkan.`
+      );
+    }
   }
 
   public async upload(
@@ -40,6 +92,9 @@ export class StreamUsecase {
     fileSize: number,
     reader: Readable | Buffer
   ): Promise<File> {
+    // Validasi kuota penyimpanan pengguna terlebih dahulu
+    await this.validateStorageQuota(userId, fileSize);
+
     const user = await this.userRepo.getById(userId);
     if (!user) {
       throw new Error('User not found');
@@ -91,6 +146,9 @@ export class StreamUsecase {
     fileSize: number,
     isBig: boolean
   ): Promise<File> {
+    // Validasi kuota penyimpanan pengguna sebelum menyelesaikan upload
+    await this.validateStorageQuota(userId, fileSize);
+
     const user = await this.userRepo.getById(userId);
     if (!user) {
       throw new Error('User not found');

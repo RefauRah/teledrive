@@ -170,6 +170,29 @@ export default function Sidebar({ onUploadFile, isOpen = false, onClose, isColla
         })}
       </nav>
 
+      {/* Storage Quota Card in Sidebar */}
+      {!isCollapsed ? (
+        <div className="mx-stack-lg mb-4 p-3.5 rounded-2xl bg-surface-container border border-surface-dim/60 shadow-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant">
+              <span className="material-symbols-outlined text-[16px] text-primary">cloud_queue</span>
+              Penyimpanan
+            </span>
+            <span className="text-[11px] font-bold text-primary">10 GB</span>
+          </div>
+          <p className="text-[11px] text-on-surface-variant/80 mb-2">
+            Batas kuota akun gratis: 10 GB
+          </p>
+          <div className="w-full h-1.5 bg-surface-dim rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full" style={{ width: '10%' }} />
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-center mb-3 text-on-surface-variant" title="Kapasitas 10 GB">
+          <span className="material-symbols-outlined text-[20px] text-primary">cloud_done</span>
+        </div>
+      )}
+
       {/* Collapse Toggle Button */}
       <div className={`mt-auto pt-4 border-t border-surface-dim ${isCollapsed ? 'px-2' : 'px-stack-lg'}`}>
         <button 

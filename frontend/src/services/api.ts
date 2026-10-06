@@ -414,4 +414,17 @@ export async function getPublicShareBlobUrl(
   return getPublicDownloadUrl(token, fileId, password);
 }
 
+// ─── Storage API ─────────────────────────────────────────────
+export interface StorageUsageInfo {
+  usedBytes: number;
+  quotaBytes: number;
+  isUnlimited: boolean;
+  usedPercentage: number;
+}
+
+export async function getStorageUsage(): Promise<StorageUsageInfo> {
+  const { data } = await api.get<StorageUsageInfo>('/api/vfs/storage');
+  return data;
+}
+
 

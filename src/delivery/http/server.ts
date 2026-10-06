@@ -90,6 +90,9 @@ export function createServer(
   api.get('/vfs/memories', authJwt, vfsHandler.handleListAllFiles);
   api.post('/vfs/sync', authJwt, vfsHandler.handleSync);
 
+  // Storage info (protected)
+  api.get('/vfs/storage', authJwt, streamHandler.handleGetStorageUsage);
+
   // Upload (raw body stream, don't use jsonParser)
   api.post('/vfs/upload', authJwt, streamHandler.handleUpload);
   api.post('/vfs/upload-chunk', authJwt, streamHandler.handleUploadChunk);

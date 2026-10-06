@@ -151,4 +151,15 @@ export class StreamHandler {
       }
     }
   };
+
+  public handleGetStorageUsage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const usage = await this.streamUsecase.getStorageUsage(userId);
+      res.status(200).json(usage);
+    } catch (err: any) {
+      console.error('Get storage usage error:', err);
+      res.status(500).json({ error: err.message || 'Failed to get storage usage' });
+    }
+  };
 }

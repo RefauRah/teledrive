@@ -143,6 +143,12 @@ export class TursoFileRepository implements FileRepository {
     return res.rows.map((r) => this.mapRow(r));
   }
 
+  public async getTotalStorageUsed(userId: number): Promise<number> {
+    const query = 'SELECT COALESCE(SUM(size), 0) as total_size FROM files WHERE user_id = ? AND deleted_at IS NULL';
+    const res = await this.db.execute({ sql: query, args: [userId] });
+    return Number(res.rows[0]?.total_size || 0);
+  }
+
   private mapRow(row: any): File {
     return {
       id: Number(row.id),

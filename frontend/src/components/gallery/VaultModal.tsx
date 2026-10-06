@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { User, VFile, VFolder } from '../../domain/types';
 import { useSyncWithTelegram } from '../../hooks/useFiles';
+import { getStorageUsage, type StorageUsageInfo } from '../../services/api';
 
 interface VaultModalProps {
   isOpen: boolean;
@@ -51,6 +52,16 @@ export const VaultModal: React.FC<VaultModalProps> = ({
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' });
+
+  const [storageInfo, setStorageInfo] = useState<StorageUsageInfo | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      getStorageUsage()
+        .then((info) => setStorageInfo(info))
+        .catch((err) => console.error('Failed to load storage quota:', err));
+    }
+  }, [isOpen, files]);
 
   const syncMutation = useSyncWithTelegram();
 
@@ -185,19 +196,63 @@ export const VaultModal: React.FC<VaultModalProps> = ({
           </div>
 
           <div className="p-4 rounded-2xl bg-bg-secondary/70 border border-border-subtle/80 flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              storageInfo?.isUnlimited
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'bg-primary/15 text-primary'
+            }`}>
               <ShieldCheck size={20} />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                Kapasitas Cloud
+                Batas Kapasitas
               </p>
-              <p className="text-base font-bold text-emerald-400 truncate">
-                Unlimited ∞
+              <p className="text-base font-bold text-text-primary truncate">
+                {storageInfo?.isUnlimited ? (
+                  <span className="text-emerald-400">Unlimited ∞</span>
+                ) : (
+                  '10 GB Max'
+                )}
               </p>
             </div>
           </div>
         </div>
+
+        {/* Storage Quota Progress Bar (if not unlimited) */}
+        {(!storageInfo || !storageInfo.isUnlimited) && (
+          <div className="p-4 rounded-2xl bg-bg-secondary/60 border border-border-subtle/70 mb-4 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-text-secondary flex items-center gap-1.5">
+                <HardDrive size={14} className="text-accent-warm" />
+                Penggunaan Kuota (10 GB):
+              </span>
+              <span className="font-bold text-text-primary">
+                {formatBytes(storageInfo?.usedBytes ?? totalBytes)} / 10 GB (
+                {storageInfo?.usedPercentage ??
+                  Math.min(100, Math.round((totalBytes / (10 * 1024 * 1024 * 1024)) * 10000) / 100)}
+                %)
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-bg-tertiary rounded-full overflow-hidden p-0.5 border border-border-subtle/50">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  (storageInfo?.usedPercentage ?? 0) > 90
+                    ? 'bg-rose-500'
+                    : (storageInfo?.usedPercentage ?? 0) > 75
+                    ? 'bg-amber-500'
+                    : 'bg-gradient-to-r from-accent-warm to-accent-rose'
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    storageInfo?.usedPercentage ??
+                      (totalBytes / (10 * 1024 * 1024 * 1024)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Media Breakdown */}
         <div className="p-4 rounded-2xl bg-bg-secondary/50 border border-border-subtle/60 mb-4 space-y-2">
