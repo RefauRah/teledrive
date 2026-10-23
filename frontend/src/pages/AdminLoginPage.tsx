@@ -9,7 +9,6 @@ import {
   Loader2,
   Sparkles,
   ArrowLeft,
-  KeyRound,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
 import { loginWithPassword } from '../services/api';
@@ -29,12 +28,6 @@ export const AdminLoginPage: React.FC = () => {
       navigate('/pangurus', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
-
-  const handleFillDefaultAdmin = () => {
-    setUsername('admin');
-    setPassword('admin123');
-    setError('');
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -108,27 +101,6 @@ export const AdminLoginPage: React.FC = () => {
               <span>{error}</span>
             </div>
           )}
-
-          {/* Quick Fill Box */}
-          <div className="mb-6 p-4 rounded-2xl bg-bg-tertiary/60 border border-border-subtle flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary">
-                <KeyRound size={13} className="text-accent-warm" />
-                <span>Akun Default Admin</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleFillDefaultAdmin}
-                className="px-2.5 py-1 rounded-lg bg-accent-warm/15 hover:bg-accent-warm/25 text-accent-warm text-[11px] font-bold transition-all cursor-pointer active:scale-95"
-              >
-                Gunakan Otomatis
-              </button>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] text-text-secondary font-mono">
-              <span>User: <strong className="text-text-primary">admin</strong></span>
-              <span>Pass: <strong className="text-text-primary">admin123</strong></span>
-            </div>
-          </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-1.5">
