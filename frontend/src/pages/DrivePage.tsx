@@ -10,7 +10,8 @@ import { RenameAlbumModal } from '../components/gallery/RenameAlbumModal';
 import { RenameFileModal } from '../components/gallery/RenameFileModal';
 import { EditCaptionModal } from '../components/gallery/EditCaptionModal';
 import { MoveFileModal } from '../components/gallery/MoveFileModal';
-import { VaultModal } from '../components/gallery/VaultModal';
+import { StorageModal } from '../components/gallery/StorageModal';
+import { PrivateVaultModal } from '../components/gallery/PrivateVaultModal';
 import { ConfirmModal } from '../components/gallery/ConfirmModal';
 import { ShareModal } from '../components/share/ShareModal';
 import { SelectionToolbar } from '../components/gallery/SelectionToolbar';
@@ -30,6 +31,7 @@ import {
   useUpdateCaption,
   useRenameFile,
   useDeleteFile,
+  useToggleVaultStatus,
 } from '../hooks/useFiles';
 import { downloadFile } from '../services/api';
 import { useUploadStore } from '../stores/useUploadStore';
@@ -71,6 +73,7 @@ export const MemoriesPage: React.FC = () => {
 
   // Modals state
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [sharingItem, setSharingItem] = useState<{ item: VFile | VFolder; type: 'file' | 'folder' } | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<VFolder | null>(null);
@@ -93,6 +96,7 @@ export const MemoriesPage: React.FC = () => {
   const moveFileMutation = useMoveFile();
   const updateCaptionMutation = useUpdateCaption();
   const deleteFileMutation = useDeleteFile();
+  const toggleVaultMutation = useToggleVaultStatus();
 
   const folders = directoryContent?.folders || [];
   const files = directoryContent?.files || [];
@@ -253,6 +257,76 @@ export const MemoriesPage: React.FC = () => {
         setConfirmDialog(null);
       },
     });
+  };
+
+  // Vault Lock/Unlock handlers
+  const handleLockFileToVault = async (file: VFile) => {
+    try {
+      await toggleVaultMutation.mutateAsync({
+        fileIds: [file.id],
+        folderIds: [],
+        isVault: true,
+      });
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(file.id);
+        return next;
+      });
+    } catch (err: any) {
+      console.error('Failed to lock file to vault:', err);
+      alert('Gagal mengunci berkas ke brankas.');
+    }
+  };
+
+  const handleLockFolderToVault = async (folder: VFolder) => {
+    try {
+      await toggleVaultMutation.mutateAsync({
+        fileIds: [],
+        folderIds: [folder.id],
+        isVault: true,
+      });
+      setSelectedFolderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(folder.id);
+        return next;
+      });
+    } catch (err: any) {
+      console.error('Failed to lock folder to vault:', err);
+      alert('Gagal mengunci album ke brankas.');
+    }
+  };
+
+  const handleBatchLockToVault = async () => {
+    const fileIds = Array.from(selectedFileIds);
+    const folderIds = Array.from(selectedFolderIds);
+    if (fileIds.length === 0 && folderIds.length === 0) return;
+
+    try {
+      await toggleVaultMutation.mutateAsync({
+        fileIds,
+        folderIds,
+        isVault: true,
+      });
+      handleClearSelection();
+    } catch (err: any) {
+      console.error('Failed to batch lock to vault:', err);
+      alert('Gagal mengunci berkas ke brankas.');
+    }
+  };
+
+  const handleToggleVaultFile = async (file: VFile) => {
+    try {
+      const targetIsVault = !file.isVault;
+      await toggleVaultMutation.mutateAsync({
+        fileIds: [file.id],
+        folderIds: [],
+        isVault: targetIsVault,
+      });
+      setLightboxFile(null);
+    } catch (err: any) {
+      console.error('Failed to toggle vault:', err);
+      alert('Gagal mengubah status brankas.');
+    }
   };
 
   // Folder actions
@@ -448,6 +522,7 @@ export const MemoriesPage: React.FC = () => {
             onUploadClick={handleUploadClick}
             onCreateAlbumClick={() => setIsCreateAlbumOpen(true)}
             onVaultClick={() => setIsVaultModalOpen(true)}
+            onStorageClick={() => setIsStorageModalOpen(true)}
           />
 
           {/* Hidden file input */}
@@ -519,6 +594,7 @@ export const MemoriesPage: React.FC = () => {
         onBatchDownload={handleBatchDownload}
         onBatchMove={() => setMovingFiles(selectedFilesList)}
         onBatchDelete={handleBatchDelete}
+        onBatchLockToVault={handleBatchLockToVault}
       />
 
       {/* Custom Context Menu */}
@@ -551,6 +627,8 @@ export const MemoriesPage: React.FC = () => {
           await Promise.all([refetchDirectory(), refetchMemories()]);
         }}
         onOpenVault={() => setIsVaultModalOpen(true)}
+        onLockFileToVault={handleLockFileToVault}
+        onLockFolderToVault={handleLockFolderToVault}
       />
 
       {/* Upload Queue */}
@@ -568,13 +646,29 @@ export const MemoriesPage: React.FC = () => {
           onDelete={handleDeleteFile}
           onMove={(file) => setMovingFile(file)}
           onShare={(file) => setSharingItem({ item: file, type: 'file' })}
+          onToggleVault={handleToggleVaultFile}
         />
       )}
 
-      {/* Aetheria Vault Modal */}
-      <VaultModal
+      {/* Private Vault Modal (Brankas Rahasia dengan PIN) */}
+      <PrivateVaultModal
         isOpen={isVaultModalOpen}
         onClose={() => setIsVaultModalOpen(false)}
+        onPreviewFile={(file, _fList, idx) => {
+          setLightboxFile(file);
+          setLightboxIndex(idx);
+        }}
+        onItemsChanged={async () => {
+          await queryClient.invalidateQueries({ queryKey: ['directory'] });
+          await queryClient.invalidateQueries({ queryKey: ['memories'] });
+          await Promise.all([refetchDirectory(), refetchMemories()]);
+        }}
+      />
+
+      {/* Cloud Storage & Sync Modal */}
+      <StorageModal
+        isOpen={isStorageModalOpen}
+        onClose={() => setIsStorageModalOpen(false)}
         user={user}
         files={allMemories.length > 0 ? allMemories : files}
         folders={folders}

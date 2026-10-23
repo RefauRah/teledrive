@@ -10,9 +10,31 @@ export interface File {
   telegram_file_id: string;
   caption: string;
   is_starred: boolean;
+  is_vault: boolean;
   deleted_at?: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface SystemFileItem extends File {
+  owner_username: string;
+  owner_phone: string;
+  owner_name: string;
+}
+
+export interface SystemStorageStats {
+  totalBytes: number;
+  totalFiles: number;
+  totalVaultFiles: number;
+  breakdown: Record<string, { bytes: number; count: number }>;
+}
+
+export interface ListSystemFilesOptions {
+  search?: string;
+  category?: string;
+  isVault?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
 export interface FileRepository {
@@ -38,5 +60,10 @@ export interface FileRepository {
   permanentDeleteAllTrashed(userId: number): Promise<void>;
   listStarred(userId: number): Promise<File[]>;
   listAll(userId: number): Promise<File[]>;
+  listVault(userId: number): Promise<File[]>;
+  setVaultStatus(userId: number, fileIds: number[], isVault: boolean): Promise<void>;
   getTotalStorageUsed(userId: number): Promise<number>;
+  getSystemStorageStats(): Promise<SystemStorageStats>;
+  listAllSystemFiles(options?: ListSystemFilesOptions): Promise<{ files: SystemFileItem[]; total: number }>;
+  adminDeleteFile(fileId: number): Promise<void>;
 }

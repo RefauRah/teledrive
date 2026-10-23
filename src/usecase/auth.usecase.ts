@@ -8,6 +8,7 @@ import { isPhoneAllowed } from '../infrastructure/config/config.js';
 import type { ClientPool } from '../infrastructure/telegram/client-pool.js';
 import { SessionStore } from '../infrastructure/telegram/session-store.js';
 import type { StringSession } from 'telegram/sessions/index.js';
+import { verifyPassword } from '../infrastructure/crypto/password.js';
 
 export interface SendCodeResult {
   transaction_id: string;
@@ -97,7 +98,7 @@ export class AuthUsecase {
       // ignore
     }
 
-    const token = this.generateJwt(user.id);
+    const token = this.generateJwt(user.id, user.role);
 
     return {
       token,
@@ -334,10 +335,48 @@ export class AuthUsecase {
     }
   }
 
-  public generateJwt(userId: number): string {
-    return jwt.sign({ user_id: userId }, this.config.jwtSecret, {
+  public generateJwt(userId: number, role: 'user' | 'admin' = 'user'): string {
+    return jwt.sign({ user_id: userId, role }, this.config.jwtSecret, {
       expiresIn: '7d',
     });
+  }
+
+  public async loginWithPassword(usernameOrPhone: string, password: string): Promise<SignInResult> {
+    const trimmed = usernameOrPhone.trim();
+    if (!trimmed) {
+      throw new Error('Username atau nomor HP wajib diisi');
+    }
+    if (!password) {
+      throw new Error('Kata sandi wajib diisi');
+    }
+
+    let user = await this.userRepo.getByUsername(trimmed);
+    if (!user) {
+      user = await this.userRepo.getByPhone(trimmed);
+    }
+
+    if (!user) {
+      throw new Error('Username atau kata sandi salah');
+    }
+
+    if (user.is_banned) {
+      throw new Error('Akun Anda telah dinonaktifkan oleh administrator');
+    }
+
+    if (!user.password_hash) {
+      throw new Error('Akun ini tidak memiliki kata sandi aktif. Silakan masuk menggunakan Telegram');
+    }
+
+    const isValid = verifyPassword(password, user.password_hash);
+    if (!isValid) {
+      throw new Error('Username atau kata sandi salah');
+    }
+
+    const token = this.generateJwt(user.id, user.role);
+    return {
+      token,
+      user,
+    };
   }
 
   public async updateProfile(

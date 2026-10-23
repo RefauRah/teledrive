@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, FolderPlus, Upload, Sparkles, User, Monitor } from 'lucide-react';
+import { Home, FolderPlus, Upload, Lock, User, Monitor } from 'lucide-react';
 import { useViewModeStore } from '../../stores/useViewModeStore';
 
 interface MobileNavProps {
@@ -56,14 +56,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({
           <span className="text-[10px] font-bold text-accent-warm mt-0.5">Upload</span>
         </div>
 
-        {/* Vault Status */}
+        {/* Private Vault */}
         <button
           onClick={onVaultClick}
-          className="flex flex-col items-center gap-1 py-1 px-2.5 text-text-secondary hover:text-accent-warm active:scale-95 transition-all cursor-pointer group"
-          title="Aetheria Vault"
+          className="flex flex-col items-center gap-1 py-1 px-2.5 text-text-secondary hover:text-amber-400 active:scale-95 transition-all cursor-pointer group"
+          title="Brankas Rahasia (Private Vault)"
         >
-          <Sparkles size={20} className="group-hover:text-accent-warm text-accent-warm/80 transition-colors" />
-          <span className="text-[10px] font-medium tracking-tight">Vault</span>
+          <Lock size={20} className="group-hover:text-amber-400 text-amber-400/90 transition-colors" />
+          <span className="text-[10px] font-medium tracking-tight">Brankas</span>
         </button>
 
         {/* Switch Mode / Profile */}

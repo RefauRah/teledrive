@@ -13,6 +13,7 @@ import { AuthUsecase } from './usecase/auth.usecase.js';
 import { VFSUsecase } from './usecase/vfs.usecase.js';
 import { StreamUsecase } from './usecase/stream.usecase.js';
 import { ShareUsecase } from './usecase/share.usecase.js';
+import { AdminUsecase } from './usecase/admin.usecase.js';
 import { createServer } from './delivery/http/server.js';
 
 async function bootstrap(): Promise<void> {
@@ -56,17 +57,21 @@ async function bootstrap(): Promise<void> {
   const authRepo = new TursoAuthRepository(db);
   const shareRepo = new TursoShareRepository(db);
 
+  // 5.1 Ensure default admin account exists
+  await userRepo.ensureDefaultAdmin();
+
   // 6. Initialize Usecases & Helpers
   const authUC = new AuthUsecase(authRepo, userRepo, cfg, clientPool);
-  const vfsUC = new VFSUsecase(folderRepo, fileRepo, clientPool);
+  const vfsUC = new VFSUsecase(folderRepo, fileRepo, clientPool, userRepo, cfg.jwtSecret);
 
   const uploader = new Uploader();
   const downloader = new Downloader();
   const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader, cfg);
   const shareUC = new ShareUsecase(shareRepo, fileRepo, folderRepo, userRepo, clientPool, downloader);
+  const adminUC = new AdminUsecase(userRepo, fileRepo, folderRepo, shareRepo, cfg);
 
   // 7. Setup HTTP server
-  const app = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC);
+  const app = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC, adminUC, userRepo);
 
   const server = app.listen(cfg.port, () => {
     console.log(`Server starting on port ${cfg.port}...`);

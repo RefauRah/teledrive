@@ -145,6 +145,12 @@ body {
   50% { transform: translateY(-6px); }
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
 /* ─── Animation Utilities ───────────────────────────────────── */
 .animate-fade-in {
   animation: fadeIn 0.3s var(--ease-out) forwards;
@@ -156,6 +162,10 @@ body {
 
 .animate-fade-in-scale {
   animation: fadeInScale 0.25s var(--ease-out) forwards;
+}
+
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 .animate-slide-up {

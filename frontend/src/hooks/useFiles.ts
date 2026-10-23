@@ -12,7 +12,50 @@ import {
   moveFile as moveFileApi,
   deleteFile as deleteFileApi,
   syncWithTelegram,
+  getVaultStatus,
+  getVaultItems,
+  toggleVaultStatus as toggleVaultStatusApi,
 } from '../services/api';
+
+export function useVaultStatus() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return useQuery({
+    queryKey: ['vault', 'status'],
+    queryFn: getVaultStatus,
+    enabled: isAuthenticated,
+  });
+}
+
+export function useVaultItems(isUnlocked: boolean) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return useQuery({
+    queryKey: ['vault', 'items'],
+    queryFn: getVaultItems,
+    enabled: isAuthenticated && isUnlocked,
+  });
+}
+
+export function useToggleVaultStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      fileIds,
+      folderIds,
+      isVault,
+    }: {
+      fileIds: string[];
+      folderIds: string[];
+      isVault: boolean;
+    }) => toggleVaultStatusApi(fileIds, folderIds, isVault),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['directory'] }),
+        queryClient.invalidateQueries({ queryKey: ['memories'] }),
+        queryClient.invalidateQueries({ queryKey: ['vault', 'items'] }),
+      ]);
+    },
+  });
+}
 
 export function useDirectory(folderId: string | null = null) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

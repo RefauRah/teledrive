@@ -9,13 +9,12 @@ import {
   QrCode,
   User as UserIcon,
   RefreshCw,
-  Info,
   KeyRound,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useSendCode, useSignIn } from '../../hooks/useAuth';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { exportQrCode, checkQrStatus, submitQrPassword } from '../../services/api';
+import { exportQrCode, checkQrStatus, submitQrPassword, loginWithPassword } from '../../services/api';
 
 type AuthMethod = 'phone' | 'qr' | 'username';
 type AuthStep = 'phone' | 'otp' | 'password';
@@ -64,6 +63,7 @@ export default function AuthFlow() {
   // Username Login State
   const [usernameInput, setUsernameInput] = useState('');
   const [userPasswordInput, setUserPasswordInput] = useState('');
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -304,17 +304,28 @@ export default function AuthFlow() {
       return;
     }
 
-    // If user provided a phone number directly in username field
-    const isDigitsOnly = /^[\d+\s-]+$/.test(input);
-    if (isDigitsOnly) {
-      const cleaned = input.replace(/[^\d+]/g, '');
-      setLocalPhone(cleaned.replace(/^\+?62/, '').replace(/^0+/, ''));
-      setAuthMethod('phone');
+    if (!userPasswordInput) {
+      const isDigitsOnly = /^[\d+\s-]+$/.test(input);
+      if (isDigitsOnly) {
+        const cleaned = input.replace(/[^\d+]/g, '');
+        setLocalPhone(cleaned.replace(/^\+?62/, '').replace(/^0+/, ''));
+        setAuthMethod('phone');
+        return;
+      }
+      setError('Masukkan kata sandi akun');
       return;
     }
 
-    // Switch to fast QR scan login with clear helpful prompt
-    setAuthMethod('qr');
+    setIsPasswordLoading(true);
+    try {
+      const res = await loginWithPassword(input, userPasswordInput);
+      login(res.token, res.user);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Login gagal';
+      setError(msg);
+    } finally {
+      setIsPasswordLoading(false);
+    }
   };
 
   const isLoading = sendCodeMutation.isPending || signInMutation.isPending;
@@ -778,19 +789,38 @@ export default function AuthFlow() {
               />
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-bg-tertiary/40 border border-border-subtle text-[11px] text-text-muted flex items-start gap-2 leading-relaxed">
-              <Info size={15} className="text-accent-warm shrink-0 mt-0.5" />
-              <span>
-                Untuk keamanan tingkat tinggi, autentikasi cloud diverifikasi melalui kode OTP langsung atau scan QR instan.
-              </span>
+            <div className="flex items-center justify-between px-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsernameInput('admin');
+                  setUserPasswordInput('admin123');
+                }}
+                className="text-[11px] font-semibold text-accent-warm hover:text-accent-rose hover:underline cursor-pointer transition-colors"
+              >
+                ⚡ Isi Akun Admin Default (admin / admin123)
+              </button>
+              <a
+                href="/admin/login"
+                className="text-[11px] font-semibold text-text-muted hover:text-text-primary hover:underline transition-colors"
+              >
+                Portal Admin &rarr;
+              </a>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl gradient-warm text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-accent-warm/20 hover:opacity-95 active:scale-98 transition-all btn-press cursor-pointer"
+              disabled={isPasswordLoading}
+              className="w-full py-3.5 rounded-2xl gradient-warm text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-accent-warm/20 hover:opacity-95 active:scale-98 transition-all btn-press cursor-pointer disabled:opacity-50"
             >
-              <span>Lanjutkan Masuk</span>
-              <ArrowRight size={16} />
+              {isPasswordLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <span>Masuk dengan Akun</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
         )}

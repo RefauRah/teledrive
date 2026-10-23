@@ -5,6 +5,9 @@ export interface User {
   lastName: string;
   username?: string;
   photoUrl?: string;
+  role?: 'user' | 'admin';
+  isBanned?: boolean;
+  storageQuotaBytes?: number | null;
 }
 
 export interface AuthTransaction {
@@ -17,6 +20,7 @@ export interface VFolder {
   name: string;
   parentId: string | null;
   isStarred?: boolean;
+  isVault?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,8 +38,18 @@ export interface VFile {
   mimeType: string;
   caption: string;
   isStarred?: boolean;
+  isVault?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface VaultStatusResponse {
+  hasPin: boolean;
+}
+
+export interface VaultItemsResponse {
+  files: VFile[];
+  folders: VFolder[];
 }
 
 export interface DirectoryContent {
@@ -107,3 +121,63 @@ export interface PublicShareData {
   item: PublicShareItem | null;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers: number;
+  bannedUsers: number;
+  adminUsers: number;
+  totalFiles: number;
+  totalVaultFiles: number;
+  totalFolders: number;
+  totalShares: number;
+  totalBytes: number;
+  breakdown: Record<string, { bytes: number; count: number }>;
+  health: {
+    status: 'healthy' | 'degraded';
+    uptimeSeconds: number;
+    memoryUsedBytes: number;
+    nodeVersion: string;
+    defaultQuotaBytes: number;
+  };
+}
+
+export interface AdminUserItem {
+  id: number;
+  telegram_id: string;
+  phone: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  photo_url: string;
+  role: 'user' | 'admin';
+  is_banned: boolean;
+  storage_quota_bytes: number | null;
+  storage_used: number;
+  is_unlimited: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminFileItem {
+  id: number;
+  user_id: number;
+  folder_id: number | null;
+  name: string;
+  size: number;
+  mime_type: string;
+  caption: string;
+  is_starred: boolean;
+  is_vault: boolean;
+  created_at: string;
+  owner_username: string;
+  owner_phone: string;
+  owner_name: string;
+}
+
+export interface AdminConfig {
+  storageQuotaBytes: number;
+  unlimitedPhones: string[];
+  allowedPhones: string[];
+  port: number;
+  nodeEnv: string;
+}

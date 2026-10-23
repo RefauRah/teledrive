@@ -111,4 +111,13 @@ export class TursoShareRepository implements ShareRepository {
       updated_at: new Date(row.updated_at),
     };
   }
+
+  public async getTotalActiveCount(): Promise<number> {
+    const res = await this.db.execute(`
+      SELECT COUNT(*) as total
+      FROM shares
+      WHERE is_active = 1 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+    `);
+    return Number(res.rows[0]?.total || 0);
+  }
 }

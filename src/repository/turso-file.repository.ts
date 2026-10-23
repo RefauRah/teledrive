@@ -1,5 +1,11 @@
 import type { Client } from '@libsql/client';
-import type { File, FileRepository } from '../domain/file.js';
+import type {
+  File,
+  FileRepository,
+  SystemFileItem,
+  SystemStorageStats,
+  ListSystemFilesOptions,
+} from '../domain/file.js';
 
 export class TursoFileRepository implements FileRepository {
   private db: Client;
@@ -55,10 +61,10 @@ export class TursoFileRepository implements FileRepository {
     let args: any[];
 
     if (folderId === null) {
-      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id IS NULL AND deleted_at IS NULL ORDER BY created_at DESC';
+      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id IS NULL AND is_vault = 0 AND deleted_at IS NULL ORDER BY created_at DESC';
       args = [userId];
     } else {
-      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL ORDER BY created_at DESC';
+      sql = 'SELECT * FROM files WHERE user_id = ? AND folder_id = ? AND is_vault = 0 AND deleted_at IS NULL ORDER BY created_at DESC';
       args = [userId, folderId];
     }
 
@@ -72,11 +78,28 @@ export class TursoFileRepository implements FileRepository {
       LEFT JOIN folders fold ON f.folder_id = fold.id
       WHERE f.user_id = ?
         AND f.deleted_at IS NULL
-        AND (f.folder_id IS NULL OR fold.deleted_at IS NULL)
+        AND f.is_vault = 0
+        AND (f.folder_id IS NULL OR (fold.deleted_at IS NULL AND fold.is_vault = 0))
       ORDER BY f.created_at DESC
     `;
     const res = await this.db.execute({ sql, args: [userId] });
     return res.rows.map((r) => this.mapRow(r));
+  }
+
+  public async listVault(userId: number): Promise<File[]> {
+    const query = 'SELECT * FROM files WHERE user_id = ? AND is_vault = 1 AND deleted_at IS NULL ORDER BY updated_at DESC';
+    const res = await this.db.execute({ sql: query, args: [userId] });
+    return res.rows.map((r) => this.mapRow(r));
+  }
+
+  public async setVaultStatus(userId: number, fileIds: number[], isVault: boolean): Promise<void> {
+    if (fileIds.length === 0) return;
+    const placeholders = fileIds.map(() => '?').join(',');
+    const query = `UPDATE files SET is_vault = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND id IN (${placeholders})`;
+    await this.db.execute({
+      sql: query,
+      args: [isVault ? 1 : 0, userId, ...fileIds],
+    });
   }
 
   public async update(file: Pick<File, 'id' | 'name' | 'folder_id' | 'is_starred'>): Promise<void> {
@@ -138,7 +161,7 @@ export class TursoFileRepository implements FileRepository {
   }
 
   public async listStarred(userId: number): Promise<File[]> {
-    const query = 'SELECT * FROM files WHERE user_id = ? AND is_starred = 1 AND deleted_at IS NULL ORDER BY created_at DESC';
+    const query = 'SELECT * FROM files WHERE user_id = ? AND is_starred = 1 AND is_vault = 0 AND deleted_at IS NULL ORDER BY created_at DESC';
     const res = await this.db.execute({ sql: query, args: [userId] });
     return res.rows.map((r) => this.mapRow(r));
   }
@@ -147,6 +170,130 @@ export class TursoFileRepository implements FileRepository {
     const query = 'SELECT COALESCE(SUM(size), 0) as total_size FROM files WHERE user_id = ? AND deleted_at IS NULL';
     const res = await this.db.execute({ sql: query, args: [userId] });
     return Number(res.rows[0]?.total_size || 0);
+  }
+
+  public async getSystemStorageStats(): Promise<SystemStorageStats> {
+    const totalRes = await this.db.execute(`
+      SELECT
+        COALESCE(SUM(size), 0) as total_bytes,
+        COUNT(*) as total_files,
+        SUM(CASE WHEN is_vault = 1 THEN 1 ELSE 0 END) as total_vault
+      FROM files
+      WHERE deleted_at IS NULL
+    `);
+    const totalBytes = Number(totalRes.rows[0]?.total_bytes || 0);
+    const totalFiles = Number(totalRes.rows[0]?.total_files || 0);
+    const totalVaultFiles = Number(totalRes.rows[0]?.total_vault || 0);
+
+    const breakdownRes = await this.db.execute(`
+      SELECT
+        CASE
+          WHEN mime_type LIKE 'image/%' THEN 'image'
+          WHEN mime_type LIKE 'video/%' THEN 'video'
+          WHEN mime_type LIKE 'audio/%' THEN 'audio'
+          WHEN mime_type LIKE 'application/pdf' OR mime_type LIKE '%document%' OR mime_type LIKE '%text%' THEN 'document'
+          ELSE 'other'
+        END as category,
+        COALESCE(SUM(size), 0) as cat_bytes,
+        COUNT(*) as cat_count
+      FROM files
+      WHERE deleted_at IS NULL
+      GROUP BY category
+    `);
+
+    const breakdown: Record<string, { bytes: number; count: number }> = {
+      image: { bytes: 0, count: 0 },
+      video: { bytes: 0, count: 0 },
+      audio: { bytes: 0, count: 0 },
+      document: { bytes: 0, count: 0 },
+      other: { bytes: 0, count: 0 },
+    };
+
+    for (const row of breakdownRes.rows) {
+      const cat = String(row.category || 'other');
+      breakdown[cat] = {
+        bytes: Number(row.cat_bytes || 0),
+        count: Number(row.cat_count || 0),
+      };
+    }
+
+    return {
+      totalBytes,
+      totalFiles,
+      totalVaultFiles,
+      breakdown,
+    };
+  }
+
+  public async listAllSystemFiles(options: ListSystemFilesOptions = {}): Promise<{ files: SystemFileItem[]; total: number }> {
+    const conditions: string[] = ['f.deleted_at IS NULL'];
+    const args: any[] = [];
+
+    if (options.search && options.search.trim()) {
+      const term = `%${options.search.trim()}%`;
+      conditions.push('(f.name LIKE ? OR u.username LIKE ? OR u.phone LIKE ?)');
+      args.push(term, term, term);
+    }
+
+    if (options.category) {
+      if (options.category === 'image') conditions.push("f.mime_type LIKE 'image/%'");
+      else if (options.category === 'video') conditions.push("f.mime_type LIKE 'video/%'");
+      else if (options.category === 'audio') conditions.push("f.mime_type LIKE 'audio/%'");
+      else if (options.category === 'document') conditions.push("(f.mime_type LIKE 'application/pdf' OR f.mime_type LIKE '%document%' OR f.mime_type LIKE '%text%')");
+      else if (options.category === 'vault') conditions.push("f.is_vault = 1");
+    }
+
+    if (options.isVault !== undefined) {
+      conditions.push('f.is_vault = ?');
+      args.push(options.isVault ? 1 : 0);
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const countRes = await this.db.execute({
+      sql: `SELECT COUNT(*) as total FROM files f JOIN users u ON f.user_id = u.id WHERE ${whereClause}`,
+      args: [...args],
+    });
+    const total = Number(countRes.rows[0]?.total || 0);
+
+    const limit = options.limit || 50;
+    const offset = options.offset || 0;
+
+    const listRes = await this.db.execute({
+      sql: `
+        SELECT
+          f.*,
+          u.username as owner_username,
+          u.phone as owner_phone,
+          (u.first_name || ' ' || u.last_name) as owner_name
+        FROM files f
+        JOIN users u ON f.user_id = u.id
+        WHERE ${whereClause}
+        ORDER BY f.created_at DESC
+        LIMIT ? OFFSET ?
+      `,
+      args: [...args, limit, offset],
+    });
+
+    const files: SystemFileItem[] = listRes.rows.map((row) => ({
+      ...this.mapRow(row),
+      owner_username: String(row.owner_username || ''),
+      owner_phone: String(row.owner_phone || ''),
+      owner_name: String(row.owner_name || '').trim(),
+    }));
+
+    return { files, total };
+  }
+
+  public async adminDeleteFile(fileId: number): Promise<void> {
+    await this.db.execute({
+      sql: 'DELETE FROM shares WHERE file_id = ?',
+      args: [fileId],
+    });
+    await this.db.execute({
+      sql: 'DELETE FROM files WHERE id = ?',
+      args: [fileId],
+    });
   }
 
   private mapRow(row: any): File {
@@ -162,6 +309,7 @@ export class TursoFileRepository implements FileRepository {
       telegram_file_id: String(row.telegram_file_id || ''),
       caption: String(row.caption || ''),
       is_starred: Boolean(row.is_starred),
+      is_vault: Boolean(row.is_vault),
       deleted_at: row.deleted_at ? new Date(String(row.deleted_at)) : null,
       created_at: new Date(String(row.created_at)),
       updated_at: new Date(String(row.updated_at)),

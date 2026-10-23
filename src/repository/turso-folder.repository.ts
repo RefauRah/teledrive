@@ -39,10 +39,10 @@ export class TursoFolderRepository implements FolderRepository {
     let args: any[];
 
     if (parentId === null) {
-      sql = 'SELECT * FROM folders WHERE user_id = ? AND parent_id IS NULL AND deleted_at IS NULL ORDER BY name';
+      sql = 'SELECT * FROM folders WHERE user_id = ? AND parent_id IS NULL AND is_vault = 0 AND deleted_at IS NULL ORDER BY name';
       args = [userId];
     } else {
-      sql = 'SELECT * FROM folders WHERE user_id = ? AND parent_id = ? AND deleted_at IS NULL ORDER BY name';
+      sql = 'SELECT * FROM folders WHERE user_id = ? AND parent_id = ? AND is_vault = 0 AND deleted_at IS NULL ORDER BY name';
       args = [userId, parentId];
     }
 
@@ -111,9 +111,25 @@ export class TursoFolderRepository implements FolderRepository {
   }
 
   public async listStarred(userId: number): Promise<Folder[]> {
-    const query = 'SELECT * FROM folders WHERE user_id = ? AND is_starred = 1 AND deleted_at IS NULL ORDER BY name';
+    const query = 'SELECT * FROM folders WHERE user_id = ? AND is_starred = 1 AND is_vault = 0 AND deleted_at IS NULL ORDER BY name';
     const res = await this.db.execute({ sql: query, args: [userId] });
     return res.rows.map((r) => this.mapRow(r));
+  }
+
+  public async listVault(userId: number): Promise<Folder[]> {
+    const query = 'SELECT * FROM folders WHERE user_id = ? AND is_vault = 1 AND deleted_at IS NULL ORDER BY updated_at DESC';
+    const res = await this.db.execute({ sql: query, args: [userId] });
+    return res.rows.map((r) => this.mapRow(r));
+  }
+
+  public async setVaultStatus(userId: number, folderIds: number[], isVault: boolean): Promise<void> {
+    if (folderIds.length === 0) return;
+    const placeholders = folderIds.map(() => '?').join(',');
+    const query = `UPDATE folders SET is_vault = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND id IN (${placeholders})`;
+    await this.db.execute({
+      sql: query,
+      args: [isVault ? 1 : 0, userId, ...folderIds],
+    });
   }
 
   private mapRow(row: any): Folder {
@@ -123,9 +139,15 @@ export class TursoFolderRepository implements FolderRepository {
       name: String(row.name),
       parent_id: row.parent_id !== null && row.parent_id !== undefined ? Number(row.parent_id) : null,
       is_starred: Boolean(row.is_starred),
+      is_vault: Boolean(row.is_vault),
       deleted_at: row.deleted_at ? new Date(String(row.deleted_at)) : null,
       created_at: new Date(String(row.created_at)),
       updated_at: new Date(String(row.updated_at)),
     };
+  }
+
+  public async getTotalCount(): Promise<number> {
+    const res = await this.db.execute('SELECT COUNT(*) as total FROM folders WHERE deleted_at IS NULL');
+    return Number(res.rows[0]?.total || 0);
   }
 }

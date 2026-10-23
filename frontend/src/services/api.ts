@@ -9,6 +9,10 @@ import type {
   Share,
   CreateSharePayload,
   PublicShareData,
+  AdminStats,
+  AdminUserItem,
+  AdminFileItem,
+  AdminConfig,
 } from '../domain/types';
 
 export const api = axios.create({
@@ -18,12 +22,16 @@ export const api = axios.create({
   },
 });
 
-// Request interceptor: attach JWT from localStorage
+// Request interceptor: attach JWT from localStorage and Vault token from sessionStorage
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const vaultToken = sessionStorage.getItem('vault_token');
+    if (vaultToken) {
+      config.headers['X-Vault-Token'] = vaultToken;
     }
     return config;
   },
@@ -61,7 +69,24 @@ const mapUser = (u: any): User => ({
   lastName: u.last_name || '',
   username: u.username,
   photoUrl: u.photo_url || '',
+  role: u.role || 'user',
+  isBanned: Boolean(u.is_banned),
+  storageQuotaBytes: u.storage_quota_bytes !== null && u.storage_quota_bytes !== undefined ? Number(u.storage_quota_bytes) : null,
 });
+
+export async function loginWithPassword(
+  username: string,
+  password: string
+): Promise<{ token: string; user: User }> {
+  const { data } = await api.post<{ token: string; user: any }>('/api/auth/login', {
+    username,
+    password,
+  });
+  return {
+    token: data.token,
+    user: mapUser(data.user),
+  };
+}
 
 export async function signIn(
   transactionId: string,
@@ -145,6 +170,7 @@ const mapFolder = (f: any): VFolder => ({
   name: f.name,
   parentId: f.parent_id ? f.parent_id.toString() : null,
   isStarred: Boolean(f.is_starred),
+  isVault: Boolean(f.is_vault),
   createdAt: f.created_at,
   updatedAt: f.updated_at,
 });
@@ -157,6 +183,7 @@ const mapFile = (f: any): VFile => ({
   mimeType: f.mime_type || 'application/octet-stream',
   caption: f.caption || '',
   isStarred: Boolean(f.is_starred),
+  isVault: Boolean(f.is_vault),
   createdAt: f.created_at,
   updatedAt: f.updated_at,
 });
@@ -316,11 +343,15 @@ export async function uploadFile(
 }
 
 // ─── Download & Preview ──────────────────────────────────────
-export function getFileDownloadUrl(id: string): string {
+export function getFileDownloadUrl(id: string, customVaultToken?: string): string {
   const token = localStorage.getItem('auth_token');
+  const vaultToken = customVaultToken || sessionStorage.getItem('vault_token');
   const baseUrl = import.meta.env.VITE_API_URL || '';
-  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
-  return `${baseUrl}/api/vfs/download/${id}${tokenQuery}`;
+  const params = new URLSearchParams();
+  if (token) params.set('token', token);
+  if (vaultToken) params.set('vault_token', vaultToken);
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  return `${baseUrl}/api/vfs/download/${id}${queryString}`;
 }
 
 export async function getFileBlobUrl(id: string): Promise<string> {
@@ -426,5 +457,129 @@ export async function getStorageUsage(): Promise<StorageUsageInfo> {
   const { data } = await api.get<StorageUsageInfo>('/api/vfs/storage');
   return data;
 }
+
+// ─── Private Vault API ───────────────────────────────────────
+export function getStoredVaultToken(): string | null {
+  return sessionStorage.getItem('vault_token');
+}
+
+export function setStoredVaultToken(token: string | null): void {
+  if (token) {
+    sessionStorage.setItem('vault_token', token);
+  } else {
+    sessionStorage.removeItem('vault_token');
+  }
+}
+
+export async function getVaultStatus(): Promise<{ hasPin: boolean }> {
+  const { data } = await api.get<{ hasPin: boolean }>('/api/vfs/vault/status');
+  return data;
+}
+
+export async function setupVaultPin(pin: string): Promise<{ vaultToken: string }> {
+  const { data } = await api.post<{ vaultToken: string }>('/api/vfs/vault/setup', { pin });
+  setStoredVaultToken(data.vaultToken);
+  return data;
+}
+
+export async function verifyVaultPin(pin: string): Promise<{ vaultToken: string }> {
+  const { data } = await api.post<{ vaultToken: string }>('/api/vfs/vault/verify', { pin });
+  setStoredVaultToken(data.vaultToken);
+  return data;
+}
+
+export async function changeVaultPin(currentPin: string, newPin: string): Promise<void> {
+  await api.post('/api/vfs/vault/change-pin', { currentPin, newPin });
+}
+
+export async function getVaultItems(): Promise<{ files: VFile[]; folders: VFolder[] }> {
+  const { data } = await api.get<{ files: any[]; folders: any[] }>('/api/vfs/vault/items');
+  return {
+    files: (data.files || []).map(mapFile),
+    folders: (data.folders || []).map(mapFolder),
+  };
+}
+
+export async function toggleVaultStatus(
+  fileIds: string[],
+  folderIds: string[],
+  isVault: boolean
+): Promise<void> {
+  await api.post('/api/vfs/vault/toggle', {
+    fileIds: fileIds.map((id) => parseInt(id, 10)),
+    folderIds: folderIds.map((id) => parseInt(id, 10)),
+    isVault,
+  });
+}
+
+// ─── Admin API ───────────────────────────────────────────────
+export async function getAdminStats(): Promise<AdminStats> {
+  const { data } = await api.get<AdminStats>('/api/admin/stats');
+  return data;
+}
+
+export async function getAdminUsers(params: {
+  search?: string;
+  role?: string;
+  is_banned?: boolean;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<{ users: AdminUserItem[]; total: number }> {
+  const { data } = await api.get<{ users: AdminUserItem[]; total: number }>('/api/admin/users', { params });
+  return data;
+}
+
+export async function createAdminUser(userData: {
+  username: string;
+  password: string;
+  phone?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: 'user' | 'admin';
+  storage_quota_bytes?: number | null;
+}): Promise<User> {
+  const { data } = await api.post<any>('/api/admin/users', userData);
+  return mapUser(data);
+}
+
+export async function updateAdminUser(
+  userId: number,
+  userData: {
+    role?: 'user' | 'admin';
+    is_banned?: boolean;
+    storage_quota_bytes?: number | null;
+    reset_vault_pin?: boolean;
+  }
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.patch<{ success: boolean; message: string }>(`/api/admin/users/${userId}`, userData);
+  return data;
+}
+
+export async function deleteAdminUser(userId: number): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.delete<{ success: boolean; message: string }>(`/api/admin/users/${userId}`);
+  return data;
+}
+
+export async function getAdminFiles(params: {
+  search?: string;
+  category?: string;
+  is_vault?: boolean;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<{ files: AdminFileItem[]; total: number }> {
+  const { data } = await api.get<{ files: AdminFileItem[]; total: number }>('/api/admin/files', { params });
+  return data;
+}
+
+export async function deleteAdminFile(fileId: number): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.delete<{ success: boolean; message: string }>(`/api/admin/files/${fileId}`);
+  return data;
+}
+
+export async function getAdminConfig(): Promise<AdminConfig> {
+  const { data } = await api.get<AdminConfig>('/api/admin/config');
+  return data;
+}
+
 
 

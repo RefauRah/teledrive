@@ -132,6 +132,14 @@ export class StreamHandler {
 
       const file = await this.streamUsecase.getFileMetadata(userId, fileId);
 
+      if (file.is_vault) {
+        const vaultToken = (req.headers['x-vault-token'] as string) || (req.query.vault_token as string);
+        if (!this.streamUsecase.verifyVaultToken(userId, vaultToken)) {
+          res.status(403).json({ error: 'Vault is locked. Valid vault token is required to stream or download this file.' });
+          return;
+        }
+      }
+
       res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
       res.setHeader(
         'Content-Disposition',

@@ -1,7 +1,14 @@
 import { Api } from 'telegram';
 import type { Folder, FolderRepository, BreadcrumbItem } from '../domain/folder.js';
 import type { File, FileRepository } from '../domain/file.js';
+import type { UserRepository } from '../domain/user.js';
 import type { ClientPool } from '../infrastructure/telegram/client-pool.js';
+import {
+  hashVaultPin,
+  verifyVaultPin,
+  generateVaultToken,
+  verifyVaultToken,
+} from '../infrastructure/crypto/pin.js';
 
 export interface DirectoryListing {
   folders: Folder[];
@@ -12,15 +19,21 @@ export class VFSUsecase {
   private folderRepo: FolderRepository;
   private fileRepo: FileRepository;
   private clientPool: ClientPool;
+  private userRepo?: UserRepository;
+  private jwtSecret: string;
 
   constructor(
     folderRepo: FolderRepository,
     fileRepo: FileRepository,
-    clientPool: ClientPool
+    clientPool: ClientPool,
+    userRepo?: UserRepository,
+    jwtSecret?: string
   ) {
     this.folderRepo = folderRepo;
     this.fileRepo = fileRepo;
     this.clientPool = clientPool;
+    this.userRepo = userRepo;
+    this.jwtSecret = jwtSecret || 'default-jwt-secret';
   }
 
   public async listDirectory(userId: number, folderId: number | null): Promise<DirectoryListing> {
@@ -434,5 +447,95 @@ export class VFSUsecase {
       added,
       synced: existingFiles.length + added,
     };
+  }
+
+  // ─── Private Vault Operations ────────────────────────────────
+  public async getVaultStatus(userId: number): Promise<{ hasPin: boolean }> {
+    if (!this.userRepo) throw new Error('User repository not configured');
+    const user = await this.userRepo.getById(userId);
+    return { hasPin: Boolean(user?.vault_pin) };
+  }
+
+  public async setupVaultPin(userId: number, pin: string): Promise<{ vaultToken: string }> {
+    if (!this.userRepo) throw new Error('User repository not configured');
+    const cleanPin = String(pin || '').trim();
+    if (!cleanPin || cleanPin.length < 4 || cleanPin.length > 8 || !/^\d+$/.test(cleanPin)) {
+      throw new Error('PIN harus berupa 4-8 digit angka');
+    }
+
+    const user = await this.userRepo.getById(userId);
+    if (user?.vault_pin) {
+      throw new Error('PIN Brankas sudah diatur. Gunakan menu ganti PIN jika ingin mengubah.');
+    }
+
+    const pinHash = hashVaultPin(cleanPin);
+    await this.userRepo.setVaultPin(userId, pinHash);
+    const vaultToken = generateVaultToken(userId, this.jwtSecret);
+    return { vaultToken };
+  }
+
+  public async verifyVaultPin(userId: number, pin: string): Promise<{ vaultToken: string }> {
+    if (!this.userRepo) throw new Error('User repository not configured');
+    const cleanPin = String(pin || '').trim();
+    const user = await this.userRepo.getById(userId);
+    if (!user || !user.vault_pin) {
+      throw new Error('PIN Brankas belum diatur');
+    }
+
+    const isValid = verifyVaultPin(cleanPin, user.vault_pin);
+    if (!isValid) {
+      throw new Error('PIN Brankas salah');
+    }
+
+    const vaultToken = generateVaultToken(userId, this.jwtSecret);
+    return { vaultToken };
+  }
+
+  public async changeVaultPin(userId: number, currentPin: string, newPin: string): Promise<void> {
+    if (!this.userRepo) throw new Error('User repository not configured');
+    const cleanCurrent = String(currentPin || '').trim();
+    const cleanNew = String(newPin || '').trim();
+
+    if (!cleanNew || cleanNew.length < 4 || cleanNew.length > 8 || !/^\d+$/.test(cleanNew)) {
+      throw new Error('PIN baru harus berupa 4-8 digit angka');
+    }
+
+    const user = await this.userRepo.getById(userId);
+    if (!user || !user.vault_pin) {
+      throw new Error('PIN Brankas belum diatur');
+    }
+
+    const isValid = verifyVaultPin(cleanCurrent, user.vault_pin);
+    if (!isValid) {
+      throw new Error('PIN lama tidak sesuai');
+    }
+
+    const newPinHash = hashVaultPin(cleanNew);
+    await this.userRepo.setVaultPin(userId, newPinHash);
+  }
+
+  public async listVaultItems(userId: number): Promise<{ files: File[]; folders: Folder[] }> {
+    const files = await this.fileRepo.listVault(userId);
+    const folders = await this.folderRepo.listVault(userId);
+    return { files, folders };
+  }
+
+  public async toggleVaultStatus(
+    userId: number,
+    fileIds: number[],
+    folderIds: number[],
+    isVault: boolean
+  ): Promise<void> {
+    if (fileIds && fileIds.length > 0) {
+      await this.fileRepo.setVaultStatus(userId, fileIds, isVault);
+    }
+    if (folderIds && folderIds.length > 0) {
+      await this.folderRepo.setVaultStatus(userId, folderIds, isVault);
+    }
+  }
+
+  public verifyVaultToken(userId: number, token?: string): boolean {
+    if (!token) return false;
+    return verifyVaultToken(token, userId, this.jwtSecret);
   }
 }

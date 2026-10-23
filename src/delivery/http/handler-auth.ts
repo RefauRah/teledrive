@@ -127,4 +127,23 @@ export class AuthHandler {
       res.status(500).json({ error: err.message || 'Failed to update profile' });
     }
   };
+
+  public handlePasswordLogin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { username, password } = req.body || {};
+      if (!username || typeof username !== 'string') {
+        res.status(400).json({ error: 'Username atau nomor HP wajib diisi' });
+        return;
+      }
+      if (!password || typeof password !== 'string') {
+        res.status(400).json({ error: 'Kata sandi wajib diisi' });
+        return;
+      }
+
+      const result = await this.authUsecase.loginWithPassword(username, password);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(401).json({ error: err.message || 'Login gagal' });
+    }
+  };
 }

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   CheckSquare,
   X,
@@ -6,6 +5,7 @@ import {
   FolderInput,
   Trash2,
   Loader2,
+  Lock,
 } from 'lucide-react';
 import type { VFile, VFolder } from '../../domain/types';
 import { useViewModeStore } from '../../stores/useViewModeStore';
@@ -21,6 +21,7 @@ interface SelectionToolbarProps {
   onBatchDownload: () => void;
   onBatchMove: () => void;
   onBatchDelete: () => void;
+  onBatchLockToVault?: () => void;
 }
 
 export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
@@ -34,6 +35,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   onBatchDownload,
   onBatchMove,
   onBatchDelete,
+  onBatchLockToVault,
 }) => {
   const { viewMode } = useViewModeStore();
   const totalSelected = selectedFiles.length + selectedFolders.length;
@@ -104,6 +106,19 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
           >
             <FolderInput size={15} className="text-accent-rose" />
             <span className="hidden md:inline">Pindahkan</span>
+          </button>
+        )}
+
+        {/* Action: Lock to Vault */}
+        {onBatchLockToVault && (
+          <button
+            onClick={onBatchLockToVault}
+            disabled={isDownloading || isDeleting}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-amber-500/15 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-all cursor-pointer disabled:opacity-50"
+            title={`Kunci ${totalSelected} item terpilih ke Brankas Rahasia`}
+          >
+            <Lock size={15} className="text-amber-400" />
+            <span className="hidden md:inline">Kunci ke Vault</span>
           </button>
         )}
 

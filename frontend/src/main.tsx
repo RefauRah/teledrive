@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/LoginPage';
+import { AdminLoginPage } from './pages/AdminLoginPage';
+import { AdminPage } from './pages/AdminPage';
 import { MemoriesPage } from './pages/DrivePage';
 import { LandingPage } from './pages/LandingPage';
 import { PublicSharePage } from './pages/PublicSharePage';
@@ -21,13 +23,27 @@ const queryClient = new QueryClient({
 });
 
 const AppRoutes: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
+  const isAdmin = isAuthenticated && user?.role === 'admin';
 
   return (
     <Routes>
       <Route path="/" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
       <Route path="/drive" element={isAuthenticated ? <MemoriesPage /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route
+        path="/admin"
+        element={
+          isAdmin ? (
+            <AdminPage />
+          ) : isAuthenticated ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Navigate to="/admin/login" replace />
+          )
+        }
+      />
       <Route path="/share/:token" element={<PublicSharePage />} />
       <Route path="/*" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
     </Routes>

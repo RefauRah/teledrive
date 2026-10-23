@@ -4,6 +4,7 @@ export interface Folder {
   name: string;
   parent_id: number | null;
   is_starred: boolean;
+  is_vault: boolean;
   deleted_at?: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -25,4 +26,7 @@ export interface FolderRepository {
   permanentDelete(id: number): Promise<void>;
   getBreadcrumb(folderId: number, userId: number): Promise<BreadcrumbItem[]>;
   listStarred(userId: number): Promise<Folder[]>;
+  listVault(userId: number): Promise<Folder[]>;
+  setVaultStatus(userId: number, folderIds: number[], isVault: boolean): Promise<void>;
+  getTotalCount(): Promise<number>;
 }

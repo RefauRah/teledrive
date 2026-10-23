@@ -6,6 +6,7 @@ import type { ClientPool } from '../infrastructure/telegram/client-pool.js';
 import type { Uploader } from '../infrastructure/telegram/uploader.js';
 import type { Downloader } from '../infrastructure/telegram/downloader.js';
 import { type Config, isUserUnlimitedStorage, DEFAULT_STORAGE_QUOTA_BYTES } from '../infrastructure/config/config.js';
+import { verifyVaultToken } from '../infrastructure/crypto/pin.js';
 
 export interface DownloadResult {
   fileName: string;
@@ -211,5 +212,10 @@ export class StreamUsecase {
       throw new Error('File does not belong to user');
     }
     return file;
+  }
+
+  public verifyVaultToken(userId: number, token?: string): boolean {
+    if (!token) return false;
+    return verifyVaultToken(token, userId, this.config?.jwtSecret || 'default-jwt-secret');
   }
 }

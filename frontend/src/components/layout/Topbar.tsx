@@ -8,10 +8,12 @@ import {
   Upload,
   LogOut,
   FolderPlus,
-  Sparkles,
   Loader2,
   Smartphone,
   Monitor,
+  Lock,
+  HardDrive,
+  Shield,
 } from 'lucide-react';
 
 interface TopbarProps {
@@ -20,6 +22,7 @@ interface TopbarProps {
   onUploadClick: () => void;
   onCreateAlbumClick?: () => void;
   onVaultClick?: () => void;
+  onStorageClick?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -28,6 +31,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   onUploadClick,
   onCreateAlbumClick,
   onVaultClick,
+  onStorageClick,
 }) => {
   const { user, logout } = useAuthStore();
   const { viewMode, toggleViewMode } = useViewModeStore();
@@ -101,15 +105,27 @@ export const Topbar: React.FC<TopbarProps> = ({
           {/* Desktop-only action buttons (Hidden in mobile mode because they exist in BottomNav) */}
           {viewMode === 'desktop' && (
             <>
-              {/* Vault Status button */}
+              {/* Private Vault button */}
               {onVaultClick && (
                 <button
                   onClick={onVaultClick}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-warm/10 hover:bg-accent-warm/20 border border-accent-warm/25 text-accent-warm text-xs font-bold transition-all cursor-pointer shadow-sm"
-                  title="Aetheria Vault Status"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Brankas Rahasia (Private Vault dengan PIN)"
                 >
-                  <Sparkles size={14} className="animate-pulse" />
-                  <span className="hidden sm:inline">Vault</span>
+                  <Lock size={14} className="text-amber-400" />
+                  <span className="hidden sm:inline">Brankas</span>
+                </button>
+              )}
+
+              {/* Storage Quota / Cloud Info button */}
+              {onStorageClick && (
+                <button
+                  onClick={onStorageClick}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle text-text-secondary hover:text-text-primary text-xs font-semibold transition-all cursor-pointer shadow-sm"
+                  title="Status Penyimpanan Cloud"
+                >
+                  <HardDrive size={14} className="text-accent-warm" />
+                  <span className="hidden sm:inline">Penyimpanan</span>
                 </button>
               )}
 
@@ -155,6 +171,18 @@ export const Topbar: React.FC<TopbarProps> = ({
             )}
           </button>
 
+          {/* Admin Panel button (only for admin role) */}
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-rose/15 hover:bg-accent-rose/25 text-accent-rose border border-accent-rose/30 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              title="Buka Konsol Administrator"
+            >
+              <Shield size={14} />
+              <span className="hidden md:inline">Admin Panel</span>
+            </button>
+          )}
+
           {/* Profile */}
           <div className="relative" ref={menuRef}>
             <button
@@ -180,6 +208,18 @@ export const Topbar: React.FC<TopbarProps> = ({
                   </p>
                 </div>
                 <div className="py-1">
+                  {user?.role === 'admin' && (
+                    <button
+                      className="w-full px-4 py-2.5 text-left text-sm text-accent-rose hover:bg-accent-rose/10 transition-colors flex items-center gap-3 font-bold cursor-pointer border-b border-border-subtle"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        navigate('/admin');
+                      }}
+                    >
+                      <Shield size={16} />
+                      <span>Admin Console</span>
+                    </button>
+                  )}
                   <button
                     className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
                     onClick={() => {
@@ -208,8 +248,20 @@ export const Topbar: React.FC<TopbarProps> = ({
                         onVaultClick();
                       }}
                     >
-                      <Sparkles size={16} className="text-accent-warm" />
-                      Aetheria Vault
+                      <Lock size={16} className="text-amber-400" />
+                      Brankas Rahasia (PIN)
+                    </button>
+                  )}
+                  {onStorageClick && (
+                    <button
+                      className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onStorageClick();
+                      }}
+                    >
+                      <HardDrive size={16} className="text-accent-warm" />
+                      Status Penyimpanan
                     </button>
                   )}
                   <button

@@ -13,6 +13,7 @@ import { AuthUsecase } from '../src/usecase/auth.usecase.js';
 import { VFSUsecase } from '../src/usecase/vfs.usecase.js';
 import { StreamUsecase } from '../src/usecase/stream.usecase.js';
 import { ShareUsecase } from '../src/usecase/share.usecase.js';
+import { AdminUsecase } from '../src/usecase/admin.usecase.js';
 import { createServer } from '../src/delivery/http/server.js';
 
 let appInstance: any = null;
@@ -46,15 +47,19 @@ async function getApp() {
     const authRepo = new TursoAuthRepository(db);
     const shareRepo = new TursoShareRepository(db);
 
+    // Ensure default admin account exists
+    await userRepo.ensureDefaultAdmin();
+
     const authUC = new AuthUsecase(authRepo, userRepo, cfg, clientPool);
-    const vfsUC = new VFSUsecase(folderRepo, fileRepo, clientPool);
+    const vfsUC = new VFSUsecase(folderRepo, fileRepo, clientPool, userRepo, cfg.jwtSecret);
 
     const uploader = new Uploader();
     const downloader = new Downloader();
-    const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader);
+    const streamUC = new StreamUsecase(fileRepo, userRepo, clientPool, uploader, downloader, cfg);
     const shareUC = new ShareUsecase(shareRepo, fileRepo, folderRepo, userRepo, clientPool, downloader);
+    const adminUC = new AdminUsecase(userRepo, fileRepo, folderRepo, shareRepo, cfg);
 
-    appInstance = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC);
+    appInstance = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC, adminUC, userRepo);
     return appInstance;
   })();
 

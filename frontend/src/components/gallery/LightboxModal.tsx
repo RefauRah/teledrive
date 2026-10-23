@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Download, Trash2, ChevronLeft, ChevronRight, FolderInput, Share2 } from 'lucide-react';
+import { X, Download, Trash2, ChevronLeft, ChevronRight, FolderInput, Share2, Lock, Unlock } from 'lucide-react';
 import type { VFile } from '../../domain/types';
 import { getFileBlobUrl, downloadFile } from '../../services/api';
 
@@ -13,6 +13,7 @@ interface LightboxModalProps {
   onDelete: (id: string) => void;
   onMove?: (file: VFile) => void;
   onShare?: (file: VFile) => void;
+  onToggleVault?: (file: VFile) => void;
 }
 
 const formatDate = (dateStr: string) => {
@@ -36,6 +37,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   onDelete,
   onMove,
   onShare,
+  onToggleVault,
 }) => {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -247,6 +249,19 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           >
             <Download size={18} />
           </button>
+          {onToggleVault && (
+            <button
+              onClick={() => onToggleVault(file)}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors btn-press ${
+                file.isVault
+                  ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                  : 'bg-white/10 text-white hover:bg-amber-500 hover:text-bg-primary'
+              }`}
+              title={file.isVault ? 'Keluarkan dari Brankas' : 'Kunci ke Brankas'}
+            >
+              {file.isVault ? <Unlock size={18} /> : <Lock size={18} />}
+            </button>
+          )}
           <button
             onClick={() => onDelete(file.id)}
             className="w-10 h-10 rounded-full bg-white/10 hover:bg-red-500/30 flex items-center justify-center text-white hover:text-red-400 transition-colors btn-press"

@@ -307,4 +307,89 @@ export class VFSHandler {
       res.status(500).json({ error: err.message || 'Failed to sync cloud data' });
     }
   };
+
+  // ─── Vault Handlers ───────────────────────────────────────────
+  public handleGetVaultStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const status = await this.vfsUsecase.getVaultStatus(userId);
+      res.status(200).json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to get vault status' });
+    }
+  };
+
+  public handleSetupVaultPin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { pin } = req.body || {};
+      const result = await this.vfsUsecase.setupVaultPin(userId, pin);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Failed to setup vault PIN' });
+    }
+  };
+
+  public handleVerifyVaultPin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { pin } = req.body || {};
+      const result = await this.vfsUsecase.verifyVaultPin(userId, pin);
+      res.status(200).json(result);
+    } catch (err: any) {
+      res.status(401).json({ error: err.message || 'Invalid vault PIN' });
+    }
+  };
+
+  public handleChangeVaultPin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { currentPin, newPin } = req.body || {};
+      await this.vfsUsecase.changeVaultPin(userId, currentPin, newPin);
+      res.status(200).json({ message: 'Vault PIN changed successfully' });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Failed to change vault PIN' });
+    }
+  };
+
+  public handleListVaultItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const vaultToken = (req.headers['x-vault-token'] as string) || (req.query.vault_token as string);
+      if (!this.vfsUsecase.verifyVaultToken(userId, vaultToken)) {
+        res.status(403).json({ error: 'Vault is locked. Valid vault token is required.' });
+        return;
+      }
+
+      const items = await this.vfsUsecase.listVaultItems(userId);
+      res.status(200).json(items);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to list vault items' });
+    }
+  };
+
+  public handleToggleVaultStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { fileIds, folderIds, isVault } = req.body || {};
+      const targetIsVault = Boolean(isVault);
+
+      // If moving OUT of vault (unlocking), ensure vault token is verified
+      if (!targetIsVault) {
+        const vaultToken = (req.headers['x-vault-token'] as string) || (req.query.vault_token as string);
+        if (!this.vfsUsecase.verifyVaultToken(userId, vaultToken)) {
+          res.status(403).json({ error: 'Vault is locked. Valid vault token is required.' });
+          return;
+        }
+      }
+
+      const parsedFileIds = Array.isArray(fileIds) ? fileIds.map((id: any) => parseInt(id, 10)).filter((n) => !isNaN(n)) : [];
+      const parsedFolderIds = Array.isArray(folderIds) ? folderIds.map((id: any) => parseInt(id, 10)).filter((n) => !isNaN(n)) : [];
+
+      await this.vfsUsecase.toggleVaultStatus(userId, parsedFileIds, parsedFolderIds, targetIsVault);
+      res.status(200).json({ message: targetIsVault ? 'Items locked into vault' : 'Items restored from vault' });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Failed to update vault status' });
+    }
+  };
 }

@@ -33,4 +33,5 @@ export interface ShareRepository {
   incrementDownloadCount(id: number): Promise<void>;
   updateStatus(id: number, isActive: boolean): Promise<void>;
   delete(id: number): Promise<void>;
+  getTotalActiveCount(): Promise<number>;
 }

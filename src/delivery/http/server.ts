@@ -6,18 +6,23 @@ import type { AuthUsecase } from '../../usecase/auth.usecase.js';
 import type { VFSUsecase } from '../../usecase/vfs.usecase.js';
 import type { StreamUsecase } from '../../usecase/stream.usecase.js';
 import type { ShareUsecase } from '../../usecase/share.usecase.js';
+import type { AdminUsecase } from '../../usecase/admin.usecase.js';
+import type { UserRepository } from '../../domain/user.js';
 import { AuthHandler } from './handler-auth.js';
 import { VFSHandler } from './handler-vfs.js';
 import { StreamHandler } from './handler-stream.js';
 import { ShareHandler } from './handler-share.js';
-import { jwtMiddleware, errorHandler } from './middleware.js';
+import { AdminHandler } from './handler-admin.js';
+import { jwtMiddleware, adminMiddleware, errorHandler } from './middleware.js';
 
 export function createServer(
   jwtSecret: string,
   authUsecase: AuthUsecase,
   vfsUsecase: VFSUsecase,
   streamUsecase: StreamUsecase,
-  shareUsecase?: ShareUsecase
+  shareUsecase?: ShareUsecase,
+  adminUsecase?: AdminUsecase,
+  userRepo?: UserRepository
 ): express.Express {
   const app = express();
 
@@ -38,6 +43,7 @@ export function createServer(
         'X-Is-Big',
         'Content-Length',
         'X-Share-Password',
+        'X-Vault-Token',
       ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
@@ -47,8 +53,10 @@ export function createServer(
   const vfsHandler = new VFSHandler(vfsUsecase);
   const streamHandler = new StreamHandler(streamUsecase);
   const shareHandler = shareUsecase ? new ShareHandler(shareUsecase) : null;
+  const adminHandler = adminUsecase ? new AdminHandler(adminUsecase) : null;
 
   const authJwt = jwtMiddleware(jwtSecret);
+  const adminAuth = userRepo ? adminMiddleware(userRepo) : null;
 
   // Body parser for JSON endpoints (skip for file upload stream)
   const jsonParser = express.json({ limit: '10mb' });
@@ -62,6 +70,7 @@ export function createServer(
   api.post('/auth/qr-code', authHandler.handleExportQrCode);
   api.get('/auth/qr-status', authHandler.handleCheckQrStatus);
   api.post('/auth/qr-password', jsonParser, authHandler.handleQrPassword);
+  api.post('/auth/login', jsonParser, authHandler.handlePasswordLogin);
 
   // Auth routes (protected)
   api.put('/auth/profile', authJwt, jsonParser, authHandler.handleUpdateProfile);
@@ -90,6 +99,14 @@ export function createServer(
   api.get('/vfs/memories', authJwt, vfsHandler.handleListAllFiles);
   api.post('/vfs/sync', authJwt, vfsHandler.handleSync);
 
+  // Private Vault routes (protected)
+  api.get('/vfs/vault/status', authJwt, vfsHandler.handleGetVaultStatus);
+  api.post('/vfs/vault/setup', authJwt, jsonParser, vfsHandler.handleSetupVaultPin);
+  api.post('/vfs/vault/verify', authJwt, jsonParser, vfsHandler.handleVerifyVaultPin);
+  api.post('/vfs/vault/change-pin', authJwt, jsonParser, vfsHandler.handleChangeVaultPin);
+  api.get('/vfs/vault/items', authJwt, vfsHandler.handleListVaultItems);
+  api.post('/vfs/vault/toggle', authJwt, jsonParser, vfsHandler.handleToggleVaultStatus);
+
   // Storage info (protected)
   api.get('/vfs/storage', authJwt, streamHandler.handleGetStorageUsage);
 
@@ -111,6 +128,18 @@ export function createServer(
     // Public share routes (no auth needed)
     api.get('/public/shares/:token', shareHandler.handleGetPublicShare);
     api.get('/public/shares/:token/download', shareHandler.handleDownloadPublicShare);
+  }
+
+  // Admin routes (protected by authJwt + adminAuth)
+  if (adminHandler && adminAuth) {
+    api.get('/admin/stats', authJwt, adminAuth, adminHandler.handleGetStats);
+    api.get('/admin/users', authJwt, adminAuth, adminHandler.handleListUsers);
+    api.post('/admin/users', authJwt, adminAuth, jsonParser, adminHandler.handleCreateUser);
+    api.patch('/admin/users/:id', authJwt, adminAuth, jsonParser, adminHandler.handleUpdateUser);
+    api.delete('/admin/users/:id', authJwt, adminAuth, adminHandler.handleDeleteUser);
+    api.get('/admin/files', authJwt, adminAuth, adminHandler.handleListFiles);
+    api.delete('/admin/files/:id', authJwt, adminAuth, adminHandler.handleDeleteFile);
+    api.get('/admin/config', authJwt, adminAuth, adminHandler.handleGetConfig);
   }
 
   app.use('/api', api);

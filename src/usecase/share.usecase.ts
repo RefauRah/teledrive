@@ -78,6 +78,9 @@ export class ShareUsecase {
       if (file.deleted_at) {
         throw new Error('Cannot share a deleted file');
       }
+      if (file.is_vault) {
+        throw new Error('Berkas di dalam Brankas Rahasia tidak dapat dibagikan ke publik');
+      }
     }
 
     if (req.folderId) {
@@ -87,6 +90,9 @@ export class ShareUsecase {
       }
       if (folder.deleted_at) {
         throw new Error('Cannot share a deleted folder');
+      }
+      if (folder.is_vault) {
+        throw new Error('Album di dalam Brankas Rahasia tidak dapat dibagikan ke publik');
       }
     }
 

@@ -13,6 +13,7 @@ import {
   Sparkles,
   ChevronRight,
   Share2,
+  Lock,
 } from 'lucide-react';
 import type { VFile, VFolder } from '../../domain/types';
 
@@ -46,6 +47,8 @@ interface ContextMenuProps {
   onUploadCanvas?: () => void;
   onRefresh?: () => void;
   onOpenVault?: () => void;
+  onLockFileToVault?: (file: VFile) => void;
+  onLockFolderToVault?: (folder: VFolder) => void;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -67,6 +70,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onUploadCanvas,
   onRefresh,
   onOpenVault,
+  onLockFileToVault,
+  onLockFolderToVault,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -211,6 +216,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <span>Unduh File</span>
           </button>
 
+          <button
+            onClick={() => {
+              onClose();
+              onLockFileToVault?.(target.file);
+            }}
+            className="w-full px-3 py-2 text-left text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center gap-2.5 transition-colors group cursor-pointer"
+          >
+            <Lock size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            <span>Kunci ke Brankas</span>
+          </button>
+
           <div className="border-t border-border-subtle/50 my-1 pt-1">
             <button
               onClick={() => {
@@ -279,6 +295,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             <Edit2 size={15} className="text-text-muted group-hover:scale-110 transition-transform" />
             <span>Ubah Nama Album</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
+              onLockFolderToVault?.(target.folder);
+            }}
+            className="w-full px-3 py-2 text-left text-xs font-medium text-amber-400 hover:bg-amber-500/10 rounded-xl flex items-center gap-2.5 transition-colors group cursor-pointer"
+          >
+            <Lock size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            <span>Kunci Album ke Brankas</span>
           </button>
 
           <div className="border-t border-border-subtle/50 my-1 pt-1">
