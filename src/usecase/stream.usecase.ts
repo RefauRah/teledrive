@@ -5,7 +5,7 @@ import type { UserRepository } from '../domain/user.js';
 import type { ClientPool } from '../infrastructure/telegram/client-pool.js';
 import type { Uploader } from '../infrastructure/telegram/uploader.js';
 import type { Downloader } from '../infrastructure/telegram/downloader.js';
-import { type Config, isUserUnlimitedStorage, DEFAULT_STORAGE_QUOTA_BYTES } from '../infrastructure/config/config.js';
+import { type Config, DEFAULT_STORAGE_QUOTA_BYTES } from '../infrastructure/config/config.js';
 import { verifyVaultToken } from '../infrastructure/crypto/pin.js';
 
 export interface DownloadResult {
@@ -48,7 +48,7 @@ export class StreamUsecase {
   public async getStorageUsage(userId: number): Promise<StorageUsageInfo> {
     const user = await this.userRepo.getById(userId);
     const usedBytes = await this.fileRepo.getTotalStorageUsed(userId);
-    const isUnlimited = (this.config && isUserUnlimitedStorage(this.config, user?.phone)) || user?.storage_quota_bytes === -1;
+    const isUnlimited = user?.storage_quota_bytes === -1;
     const quotaBytes = isUnlimited
       ? 0
       : (user?.storage_quota_bytes && user.storage_quota_bytes > 0
@@ -73,8 +73,8 @@ export class StreamUsecase {
       throw new Error('User not found');
     }
 
-    if ((this.config && isUserUnlimitedStorage(this.config, user.phone)) || user.storage_quota_bytes === -1) {
-      return; // Akun whitelisted unlimited atau diset unlimited oleh admin
+    if (user.storage_quota_bytes === -1) {
+      return; // Akun unlimited diset oleh admin di DB
     }
 
     const currentUsed = await this.fileRepo.getTotalStorageUsed(userId);

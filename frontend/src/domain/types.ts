@@ -176,7 +176,6 @@ export interface AdminFileItem {
 
 export interface AdminConfig {
   storageQuotaBytes: number;
-  unlimitedPhones: string[];
   allowedPhones: string[];
   port: number;
   nodeEnv: string;

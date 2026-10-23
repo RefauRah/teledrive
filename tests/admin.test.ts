@@ -31,7 +31,6 @@ describe('Admin System & Default Account', () => {
     jwtSecret: 'super-secret-admin-test-jwt-token',
     encryptionKey: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     allowedPhones: [],
-    unlimitedPhones: ['+628999999999'],
     storageQuotaBytes: 10 * 1024 * 1024 * 1024,
     port: 8080,
   };

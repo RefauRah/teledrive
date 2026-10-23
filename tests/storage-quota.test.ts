@@ -31,7 +31,7 @@ class MockFileRepo {
 class MockUserRepo {
   private users: Record<number, any> = {
     1: { id: 1, phone: '+628111111111', session_data: 'session1' },
-    2: { id: 2, phone: '+628999999999', session_data: 'session2' }, // whitelisted
+    2: { id: 2, phone: '+628999999999', session_data: 'session2', storage_quota_bytes: -1 }, // unlimited set by admin
   };
   async getById(id: number): Promise<any> {
     return this.users[id] || null;
@@ -63,7 +63,6 @@ describe('Storage Quota Enforcement (10 GB Limit)', () => {
     jwtSecret: 'secret',
     encryptionKey: Buffer.alloc(32),
     allowedPhones: [],
-    unlimitedPhones: ['+628999999999'], // whitelisted
     storageQuotaBytes: 10 * 1024 * 1024 * 1024, // 10 GB
     port: 8080,
   };
@@ -105,8 +104,8 @@ describe('Storage Quota Enforcement (10 GB Limit)', () => {
     );
   });
 
-  it('should allow whitelisted user to exceed 10 GB without limit', async () => {
-    // User 2 is whitelisted (+628999999999), currently using 15 GB
+  it('should allow unlimited user (storage_quota_bytes = -1) to exceed 10 GB without limit', async () => {
+    // User 2 is set to unlimited (storage_quota_bytes = -1), currently using 15 GB
     const fileRepo = new MockFileRepo(15 * 1024 * 1024 * 1024) as any;
     const userRepo = new MockUserRepo() as any;
     const streamUC = new StreamUsecase(fileRepo, userRepo, mockPool, mockUploader, mockDownloader, config);

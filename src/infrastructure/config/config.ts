@@ -10,7 +10,6 @@ export interface Config {
   jwtSecret: string;
   encryptionKey: Buffer;
   allowedPhones: string[];
-  unlimitedPhones: string[];
   storageQuotaBytes: number;
   port: number;
 }
@@ -61,12 +60,6 @@ export function loadConfig(): Config {
     .map((p) => p.trim())
     .filter(Boolean);
 
-  const unlimitedStr = process.env.UNLIMITED_PHONES || process.env.WHITELIST_UNLIMITED_PHONES || '';
-  const unlimitedPhones = unlimitedStr
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean);
-
   const quotaStr = process.env.STORAGE_QUOTA_BYTES || '';
   const storageQuotaBytes = quotaStr ? parseInt(quotaStr, 10) : DEFAULT_STORAGE_QUOTA_BYTES;
 
@@ -80,7 +73,6 @@ export function loadConfig(): Config {
     jwtSecret,
     encryptionKey,
     allowedPhones,
-    unlimitedPhones,
     storageQuotaBytes,
     port,
   };
@@ -91,12 +83,4 @@ export function isPhoneAllowed(config: Config, phone: string): boolean {
     return true;
   }
   return config.allowedPhones.includes(phone);
-}
-
-export function isUserUnlimitedStorage(config: Config, userPhone?: string): boolean {
-  if (!userPhone) return false;
-  if (!config.unlimitedPhones || config.unlimitedPhones.length === 0) {
-    return false;
-  }
-  return config.unlimitedPhones.includes(userPhone);
 }

@@ -1126,32 +1126,6 @@ export const AdminPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Whitelisted Unlimited Phones */}
-              <div className="space-y-2 pt-2">
-                <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-emerald-400" />
-                  <span>Daftar Nomor Whitelist (Storage Unlimited)</span>
-                </h4>
-                <div className="p-4 rounded-2xl bg-bg-tertiary/40 border border-border-subtle">
-                  {config && config.unlimitedPhones.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {config.unlimitedPhones.map((phone) => (
-                        <span
-                          key={phone}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-mono text-xs font-bold"
-                        >
-                          {phone}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-text-muted text-xs">
-                      Tidak ada nomor telepon di whitelist file env (semua pengguna mengikuti kuota default).
-                    </p>
-                  )}
-                </div>
-              </div>
-
               {/* Server Info */}
               <div className="space-y-2 pt-2">
                 <h4 className="text-xs font-bold text-text-primary flex items-center gap-1.5">

@@ -102,7 +102,7 @@ export class AdminUsecase {
     const enrichedUsers: AdminUserListItem[] = await Promise.all(
       result.users.map(async (u) => {
         const storageUsed = await this.fileRepo.getTotalStorageUsed(u.id);
-        const isUnlimited = this.config.unlimitedPhones.includes(u.phone) || u.storage_quota_bytes === -1;
+        const isUnlimited = u.storage_quota_bytes === -1;
         return {
           ...u,
           storage_used: storageUsed,
@@ -217,14 +217,12 @@ export class AdminUsecase {
 
   public getSystemConfig(): {
     storageQuotaBytes: number;
-    unlimitedPhones: string[];
     allowedPhones: string[];
     port: number;
     nodeEnv: string;
   } {
     return {
       storageQuotaBytes: this.config.storageQuotaBytes,
-      unlimitedPhones: this.config.unlimitedPhones,
       allowedPhones: this.config.allowedPhones,
       port: this.config.port,
       nodeEnv: process.env.NODE_ENV || 'development',
