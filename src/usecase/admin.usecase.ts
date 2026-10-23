@@ -102,7 +102,7 @@ export class AdminUsecase {
     const enrichedUsers: AdminUserListItem[] = await Promise.all(
       result.users.map(async (u) => {
         const storageUsed = await this.fileRepo.getTotalStorageUsed(u.id);
-        const isUnlimited = this.config.unlimitedPhones.includes(u.phone);
+        const isUnlimited = this.config.unlimitedPhones.includes(u.phone) || u.storage_quota_bytes === -1;
         return {
           ...u,
           storage_used: storageUsed,

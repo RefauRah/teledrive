@@ -98,6 +98,7 @@ export const AdminPage: React.FC = () => {
 
   const [quotaModalUser, setQuotaModalUser] = useState<AdminUserItem | null>(null);
   const [quotaInputGb, setQuotaInputGb] = useState('10');
+  const [isQuotaUnlimited, setIsQuotaUnlimited] = useState(false);
 
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<AdminUserItem | null>(null);
   const [deleteConfirmFile, setDeleteConfirmFile] = useState<AdminFileItem | null>(null);
@@ -223,9 +224,19 @@ export const AdminPage: React.FC = () => {
   const handleSaveQuota = async () => {
     if (!quotaModalUser) return;
     try {
-      const quotaBytes = quotaInputGb === '0' || quotaInputGb === '' ? null : parseFloat(quotaInputGb) * 1024 * 1024 * 1024;
+      const quotaBytes = isQuotaUnlimited
+        ? -1
+        : quotaInputGb === '0' || quotaInputGb === ''
+        ? null
+        : parseFloat(quotaInputGb) * 1024 * 1024 * 1024;
       await updateAdminUser(quotaModalUser.id, { storage_quota_bytes: quotaBytes });
-      showNotification('success', `Kuota penyimpanan @${quotaModalUser.username} diperbarui`);
+      const displayName = [quotaModalUser.first_name, quotaModalUser.last_name].filter(Boolean).join(' ') || (quotaModalUser.username ? `@${quotaModalUser.username}` : quotaModalUser.phone);
+      showNotification(
+        'success',
+        `Kuota penyimpanan ${displayName} berhasil diatur ke ${
+          isQuotaUnlimited ? 'Unlimited (⚡)' : quotaBytes ? `${quotaInputGb} GB` : 'Default Sistem (10 GB)'
+        }`
+      );
       setQuotaModalUser(null);
       loadUsers();
     } catch (err: any) {
@@ -777,8 +788,9 @@ export const AdminPage: React.FC = () => {
                     ) : (
                       usersList.map((u) => {
                         const isSelf = user?.id === u.id.toString() || user?.username === u.username;
-                        const quotaLimit = u.storage_quota_bytes !== null ? u.storage_quota_bytes : 10 * 1024 * 1024 * 1024;
-                        const usedPct = quotaLimit > 0 ? Math.min(100, (u.storage_used / quotaLimit) * 100) : 0;
+                        const isUnlimited = u.is_unlimited || u.storage_quota_bytes === -1;
+                        const quotaLimit = u.storage_quota_bytes !== null && u.storage_quota_bytes > 0 ? u.storage_quota_bytes : 10 * 1024 * 1024 * 1024;
+                        const usedPct = !isUnlimited && quotaLimit > 0 ? Math.min(100, (u.storage_used / quotaLimit) * 100) : 0;
 
                         return (
                           <tr key={u.id} className="hover:bg-bg-tertiary/40 transition-colors">
@@ -837,9 +849,9 @@ export const AdminPage: React.FC = () => {
 
                             {/* Storage usage */}
                             <td className="px-5 py-4">
-                              {u.is_unlimited ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-accent-cyan">
-                                  <span>⚡ Unlimited (Whitelist)</span>
+                              {isUnlimited ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30">
+                                  <span>⚡ Unlimited Storage</span>
                                 </span>
                               ) : (
                                 <div className="w-40 space-y-1">
@@ -901,13 +913,15 @@ export const AdminPage: React.FC = () => {
                                 <button
                                   onClick={() => {
                                     setQuotaModalUser(u);
+                                    const isUserUnl = u.is_unlimited || u.storage_quota_bytes === -1;
+                                    setIsQuotaUnlimited(isUserUnl);
                                     setQuotaInputGb(
-                                      u.storage_quota_bytes !== null
+                                      !isUserUnl && u.storage_quota_bytes !== null && u.storage_quota_bytes > 0
                                         ? (u.storage_quota_bytes / (1024 * 1024 * 1024)).toString()
                                         : '10'
                                     );
                                   }}
-                                  title="Atur Kuota Khusus"
+                                  title="Atur Kuota Penyimpanan"
                                   className="p-1.5 rounded-lg bg-bg-tertiary hover:bg-bg-elevated text-text-secondary hover:text-accent-cyan transition-colors cursor-pointer"
                                 >
                                   <HardDrive size={14} />
@@ -1293,35 +1307,73 @@ export const AdminPage: React.FC = () => {
           <div className="w-full max-w-sm glass-strong rounded-3xl p-6 border border-border-default/80 shadow-2xl animate-fade-in-up">
             <h3 className="text-sm font-extrabold text-text-primary mb-1">Atur Kuota Penyimpanan</h3>
             <p className="text-xs text-text-muted mb-4">
-              Pengguna: <strong className="text-text-primary">@{quotaModalUser.username}</strong>
+              Pengguna: <strong className="text-text-primary">{[quotaModalUser.first_name, quotaModalUser.last_name].filter(Boolean).join(' ') || (quotaModalUser.username ? `@${quotaModalUser.username}` : quotaModalUser.phone)}</strong>
             </p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-text-secondary block mb-1">Kapasitas Maksimal (GB)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={quotaInputGb}
-                  onChange={(e) => setQuotaInputGb(e.target.value)}
-                  placeholder="misal: 10 atau 50"
-                  className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-subtle text-text-primary focus:outline-none focus:border-accent-warm text-xs"
-                />
-                <p className="text-[10px] text-text-muted mt-1">
-                  Masukkan 0 untuk menggunakan kuota default sistem (10 GB).
-                </p>
+            <div className="space-y-4">
+              {/* Option Mode: Unlimited vs Batas Tertentu */}
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-bg-tertiary border border-border-subtle">
+                <button
+                  type="button"
+                  onClick={() => setIsQuotaUnlimited(false)}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    !isQuotaUnlimited
+                      ? 'bg-accent-warm text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  Batas Kuota (GB)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsQuotaUnlimited(true)}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    isQuotaUnlimited
+                      ? 'bg-accent-cyan text-black shadow-sm font-extrabold'
+                      : 'text-text-secondary hover:text-accent-cyan'
+                  }`}
+                >
+                  ⚡ Unlimited
+                </button>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              {isQuotaUnlimited ? (
+                <div className="p-3.5 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/30 text-xs text-accent-cyan leading-relaxed">
+                  <p className="font-bold flex items-center gap-1.5 mb-1">
+                    <span>⚡ Kuota Tanpa Batas Aktif</span>
+                  </p>
+                  <p className="text-[11px] opacity-90">
+                    Pengguna ini bebas mengunggah foto, video, dan dokumen tanpa batasan kapasitas storage (Unlimited).
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-bold text-text-secondary block mb-1">Kapasitas Maksimal (GB)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={quotaInputGb}
+                    onChange={(e) => setQuotaInputGb(e.target.value)}
+                    placeholder="misal: 10, 50, atau 100"
+                    className="w-full px-3 py-2.5 rounded-xl bg-bg-tertiary border border-border-subtle text-text-primary focus:outline-none focus:border-accent-warm text-xs"
+                  />
+                  <p className="text-[10px] text-text-muted mt-1">
+                    Masukkan 0 untuk menggunakan kuota default sistem (10 GB).
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
                 <button
                   onClick={() => setQuotaModalUser(null)}
-                  className="px-4 py-2 rounded-xl bg-bg-tertiary text-text-secondary text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-bg-tertiary text-text-secondary text-xs font-bold cursor-pointer hover:bg-bg-elevated"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleSaveQuota}
-                  className="px-4 py-2 rounded-xl bg-accent-warm text-white text-xs font-bold shadow-md cursor-pointer hover:opacity-95"
+                  className="px-4 py-2 rounded-xl bg-accent-warm hover:bg-accent-warm/90 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
                 >
                   Simpan Kuota
                 </button>

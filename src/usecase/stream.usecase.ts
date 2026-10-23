@@ -48,8 +48,12 @@ export class StreamUsecase {
   public async getStorageUsage(userId: number): Promise<StorageUsageInfo> {
     const user = await this.userRepo.getById(userId);
     const usedBytes = await this.fileRepo.getTotalStorageUsed(userId);
-    const quotaBytes = this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES;
-    const isUnlimited = this.config ? isUserUnlimitedStorage(this.config, user?.phone) : false;
+    const isUnlimited = (this.config && isUserUnlimitedStorage(this.config, user?.phone)) || user?.storage_quota_bytes === -1;
+    const quotaBytes = isUnlimited
+      ? 0
+      : (user?.storage_quota_bytes && user.storage_quota_bytes > 0
+          ? user.storage_quota_bytes
+          : (this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES));
 
     const usedPercentage = isUnlimited
       ? 0
@@ -69,12 +73,14 @@ export class StreamUsecase {
       throw new Error('User not found');
     }
 
-    if (this.config && isUserUnlimitedStorage(this.config, user.phone)) {
-      return; // Akun whitelisted unlimited
+    if ((this.config && isUserUnlimitedStorage(this.config, user.phone)) || user.storage_quota_bytes === -1) {
+      return; // Akun whitelisted unlimited atau diset unlimited oleh admin
     }
 
     const currentUsed = await this.fileRepo.getTotalStorageUsed(userId);
-    const quotaBytes = this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES;
+    const quotaBytes = user.storage_quota_bytes && user.storage_quota_bytes > 0
+      ? user.storage_quota_bytes
+      : (this.config?.storageQuotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES);
 
     if (currentUsed + incomingFileSize > quotaBytes) {
       const usedGB = (currentUsed / (1024 * 1024 * 1024)).toFixed(2);
