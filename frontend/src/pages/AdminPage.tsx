@@ -786,18 +786,22 @@ export const AdminPage: React.FC = () => {
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-accent-rose/30 to-accent-warm/30 border border-border-subtle flex items-center justify-center font-bold text-text-primary text-xs shrink-0">
-                                  {u.username ? u.username.slice(0, 1).toUpperCase() : 'U'}
+                                  {(u.first_name || u.username || 'U').slice(0, 1).toUpperCase()}
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-text-primary">{u.first_name || u.username}</span>
+                                    <span className="font-bold text-text-primary">
+                                      {[u.first_name, u.last_name].filter(Boolean).join(' ') || (u.username ? `@${u.username}` : 'Pengguna')}
+                                    </span>
                                     {isSelf && (
                                       <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-accent-warm/20 text-accent-warm">
                                         Anda
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-text-muted text-[11px]">@{u.username} • {u.phone}</p>
+                                  <p className="text-text-muted text-[11px]">
+                                    {u.username ? `@${u.username} • ` : ''}{u.phone}
+                                  </p>
                                 </div>
                               </div>
                             </td>
@@ -1032,8 +1036,12 @@ export const AdminPage: React.FC = () => {
                             {/* Owner */}
                             <td className="px-5 py-3.5">
                               <div>
-                                <p className="font-bold text-text-primary">@{f.owner_username || 'user'}</p>
-                                <p className="text-[10px] text-text-muted">{f.owner_phone}</p>
+                                <p className="font-bold text-text-primary">
+                                  {f.owner_name || (f.owner_username ? `@${f.owner_username}` : 'Pengguna')}
+                                </p>
+                                <p className="text-[10px] text-text-muted">
+                                  {f.owner_username ? `@${f.owner_username} • ` : ''}{f.owner_phone}
+                                </p>
                               </div>
                             </td>
 
@@ -1332,7 +1340,7 @@ export const AdminPage: React.FC = () => {
             </div>
             <h3 className="text-sm font-extrabold text-text-primary mb-1">Hapus Akun Pengguna?</h3>
             <p className="text-xs text-text-muted mb-4 leading-relaxed">
-              Anda akan menghapus akun <strong className="text-rose-400">@{deleteConfirmUser.username}</strong> beserta seluruh file, folder, dan tautan share terkait. Tindakan ini tidak dapat dibatalkan.
+              Anda akan menghapus akun <strong className="text-rose-400">{[deleteConfirmUser.first_name, deleteConfirmUser.last_name].filter(Boolean).join(' ') || (deleteConfirmUser.username ? `@${deleteConfirmUser.username}` : deleteConfirmUser.phone)}</strong> beserta seluruh file, folder, dan tautan share terkait. Tindakan ini tidak dapat dibatalkan.
             </p>
             <div className="flex items-center justify-center gap-2">
               <button
@@ -1361,7 +1369,8 @@ export const AdminPage: React.FC = () => {
             </div>
             <h3 className="text-sm font-extrabold text-text-primary mb-1">Hapus File dari Cloud?</h3>
             <p className="text-xs text-text-muted mb-4 leading-relaxed truncate px-2">
-              File <strong className="text-rose-400 font-mono">"{deleteConfirmFile.name}"</strong> milik @{deleteConfirmFile.owner_username} akan dihapus secara permanen dari server.
+              File <strong className="text-rose-400 font-mono">"{deleteConfirmFile.name}"</strong> milik{' '}
+              <strong className="text-text-primary">{deleteConfirmFile.owner_name || (deleteConfirmFile.owner_username ? `@${deleteConfirmFile.owner_username}` : deleteConfirmFile.owner_phone || 'pengguna')}</strong> akan dihapus secara permanen dari server.
             </p>
             <div className="flex items-center justify-center gap-2">
               <button

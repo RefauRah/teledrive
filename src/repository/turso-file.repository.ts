@@ -231,8 +231,8 @@ export class TursoFileRepository implements FileRepository {
 
     if (options.search && options.search.trim()) {
       const term = `%${options.search.trim()}%`;
-      conditions.push('(f.name LIKE ? OR u.username LIKE ? OR u.phone LIKE ?)');
-      args.push(term, term, term);
+      conditions.push('(f.name LIKE ? OR u.username LIKE ? OR u.phone LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)');
+      args.push(term, term, term, term, term);
     }
 
     if (options.category) {
@@ -265,7 +265,8 @@ export class TursoFileRepository implements FileRepository {
           f.*,
           u.username as owner_username,
           u.phone as owner_phone,
-          (u.first_name || ' ' || u.last_name) as owner_name
+          u.first_name as owner_first_name,
+          u.last_name as owner_last_name
         FROM files f
         JOIN users u ON f.user_id = u.id
         WHERE ${whereClause}
@@ -275,12 +276,21 @@ export class TursoFileRepository implements FileRepository {
       args: [...args, limit, offset],
     });
 
-    const files: SystemFileItem[] = listRes.rows.map((row) => ({
-      ...this.mapRow(row),
-      owner_username: String(row.owner_username || ''),
-      owner_phone: String(row.owner_phone || ''),
-      owner_name: String(row.owner_name || '').trim(),
-    }));
+    const files: SystemFileItem[] = listRes.rows.map((row) => {
+      const firstName = String(row.owner_first_name || '').trim();
+      const lastName = String(row.owner_last_name || '').trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      const username = String(row.owner_username || '').trim();
+      const phone = String(row.owner_phone || '').trim();
+      const ownerName = fullName || (username ? `@${username}` : '') || phone || 'Pengguna';
+
+      return {
+        ...this.mapRow(row),
+        owner_username: username,
+        owner_phone: phone,
+        owner_name: ownerName,
+      };
+    });
 
     return { files, total };
   }
