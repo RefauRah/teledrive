@@ -13,7 +13,6 @@ import {
   Monitor,
   Lock,
   HardDrive,
-  Shield,
 } from 'lucide-react';
 
 interface TopbarProps {
@@ -171,18 +170,6 @@ export const Topbar: React.FC<TopbarProps> = ({
             )}
           </button>
 
-          {/* Admin Panel button (only for admin role) */}
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => navigate('/pangurus')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-rose/15 hover:bg-accent-rose/25 text-accent-rose border border-accent-rose/30 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
-              title="Buka Konsol Administrator"
-            >
-              <Shield size={14} />
-              <span className="hidden md:inline">Admin Panel</span>
-            </button>
-          )}
-
           {/* Profile */}
           <div className="relative" ref={menuRef}>
             <button
@@ -208,18 +195,6 @@ export const Topbar: React.FC<TopbarProps> = ({
                   </p>
                 </div>
                 <div className="py-1">
-                  {user?.role === 'admin' && (
-                    <button
-                      className="w-full px-4 py-2.5 text-left text-sm text-accent-rose hover:bg-accent-rose/10 transition-colors flex items-center gap-3 font-bold cursor-pointer border-b border-border-subtle"
-                      onClick={() => {
-                        setIsProfileMenuOpen(false);
-                        navigate('/pangurus');
-                      }}
-                    >
-                      <Shield size={16} />
-                      <span>Admin Console</span>
-                    </button>
-                  )}
                   <button
                     className="w-full px-4 py-2.5 text-left text-sm text-text-primary hover:bg-bg-tertiary/60 transition-colors flex items-center gap-3 font-medium cursor-pointer"
                     onClick={() => {

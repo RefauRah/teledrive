@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Shield,
   LayoutDashboard,
@@ -325,17 +325,9 @@ export const AdminPage: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary text-xs font-bold transition-all border border-border-subtle cursor-pointer active:scale-95"
-            >
-              <HardDrive size={14} className="text-accent-warm" />
-              <span className="hidden sm:inline">Buka Cloud Drive</span>
-            </Link>
-
+          <div className="flex items-center gap-3">
             {/* Admin Badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-border-subtle">
+            <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-accent-warm to-accent-rose flex items-center justify-center text-xs font-bold text-white shadow-sm">
                 {user?.username ? user.username.slice(0, 1).toUpperCase() : 'A'}
               </div>

@@ -28,10 +28,50 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
-      <Route path="/drive" element={isAuthenticated ? <MemoriesPage /> : <Navigate to="/login" replace />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/pangurus/login" element={<AdminLoginPage />} />
+      <Route
+        path="/"
+        element={
+          isAdmin ? (
+            <Navigate to="/pangurus" replace />
+          ) : isAuthenticated ? (
+            <MemoriesPage />
+          ) : (
+            <LandingPage />
+          )
+        }
+      />
+      <Route
+        path="/drive"
+        element={
+          isAdmin ? (
+            <Navigate to="/pangurus" replace />
+          ) : isAuthenticated ? (
+            <MemoriesPage />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          isAdmin ? (
+            <Navigate to="/pangurus" replace />
+          ) : (
+            <LoginPage />
+          )
+        }
+      />
+      <Route
+        path="/pangurus/login"
+        element={
+          isAdmin ? (
+            <Navigate to="/pangurus" replace />
+          ) : (
+            <AdminLoginPage />
+          )
+        }
+      />
       <Route
         path="/pangurus"
         element={
@@ -47,7 +87,18 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin" element={<Navigate to="/" replace />} />
       <Route path="/admin/*" element={<Navigate to="/" replace />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
-      <Route path="/*" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
+      <Route
+        path="/*"
+        element={
+          isAdmin ? (
+            <Navigate to="/pangurus" replace />
+          ) : isAuthenticated ? (
+            <MemoriesPage />
+          ) : (
+            <LandingPage />
+          )
+        }
+      />
     </Routes>
   );
 };

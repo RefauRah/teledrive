@@ -108,8 +108,10 @@ export const MemoriesPage: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { replace: true });
+    } else if (user?.role === 'admin') {
+      navigate('/pangurus', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   // Folder navigation
   const handleFolderNavigate = (folderId: string | null) => {
