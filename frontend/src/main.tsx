@@ -31,19 +31,21 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
       <Route path="/drive" element={isAuthenticated ? <MemoriesPage /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/pangurus/login" element={<AdminLoginPage />} />
       <Route
-        path="/admin"
+        path="/pangurus"
         element={
           isAdmin ? (
             <AdminPage />
           ) : isAuthenticated ? (
             <Navigate to="/" replace />
           ) : (
-            <Navigate to="/admin/login" replace />
+            <Navigate to="/pangurus/login" replace />
           )
         }
       />
+      <Route path="/admin" element={<Navigate to="/" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/" replace />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
       <Route path="/*" element={isAuthenticated ? <MemoriesPage /> : <LandingPage />} />
     </Routes>

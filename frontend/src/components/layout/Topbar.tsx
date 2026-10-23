@@ -174,7 +174,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           {/* Admin Panel button (only for admin role) */}
           {user?.role === 'admin' && (
             <button
-              onClick={() => navigate('/admin')}
+              onClick={() => navigate('/pangurus')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-rose/15 hover:bg-accent-rose/25 text-accent-rose border border-accent-rose/30 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
               title="Buka Konsol Administrator"
             >
@@ -213,7 +213,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                       className="w-full px-4 py-2.5 text-left text-sm text-accent-rose hover:bg-accent-rose/10 transition-colors flex items-center gap-3 font-bold cursor-pointer border-b border-border-subtle"
                       onClick={() => {
                         setIsProfileMenuOpen(false);
-                        navigate('/admin');
+                        navigate('/pangurus');
                       }}
                     >
                       <Shield size={16} />

@@ -105,7 +105,7 @@ export const AdminPage: React.FC = () => {
   // Protect Admin Access
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate('/admin/login', { replace: true });
+      navigate('/pangurus/login', { replace: true });
       return;
     }
     if (user && user.role !== 'admin') {
@@ -348,7 +348,7 @@ export const AdminPage: React.FC = () => {
             <button
               onClick={() => {
                 logout();
-                navigate('/admin/login');
+                navigate('/pangurus/login');
               }}
               title="Logout Admin"
               className="p-2 rounded-xl text-text-muted hover:text-error hover:bg-error/10 transition-colors cursor-pointer"

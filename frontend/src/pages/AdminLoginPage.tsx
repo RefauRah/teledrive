@@ -23,10 +23,10 @@ export const AdminLoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // If already authenticated and admin, redirect to /admin
+  // If already authenticated and admin, redirect to /pangurus
   useEffect(() => {
     if (isAuthenticated && user?.role === 'admin') {
-      navigate('/admin', { replace: true });
+      navigate('/pangurus', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -53,7 +53,7 @@ export const AdminLoginPage: React.FC = () => {
         return;
       }
       login(res.token, res.user);
-      navigate('/admin', { replace: true });
+      navigate('/pangurus', { replace: true });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Login administrator gagal';
       setError(msg);

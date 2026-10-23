@@ -789,25 +789,6 @@ export default function AuthFlow() {
               />
             </div>
 
-            <div className="flex items-center justify-between px-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setUsernameInput('admin');
-                  setUserPasswordInput('admin123');
-                }}
-                className="text-[11px] font-semibold text-accent-warm hover:text-accent-rose hover:underline cursor-pointer transition-colors"
-              >
-                ⚡ Isi Akun Admin Default (admin / admin123)
-              </button>
-              <a
-                href="/admin/login"
-                className="text-[11px] font-semibold text-text-muted hover:text-text-primary hover:underline transition-colors"
-              >
-                Portal Admin &rarr;
-              </a>
-            </div>
-
             <button
               type="submit"
               disabled={isPasswordLoading}
