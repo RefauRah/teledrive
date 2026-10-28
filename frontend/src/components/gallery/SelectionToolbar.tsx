@@ -118,7 +118,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
             title={`Kunci ${totalSelected} item terpilih ke Brankas Rahasia`}
           >
             <Lock size={15} className="text-amber-400" />
-            <span className="hidden md:inline">Kunci ke Vault</span>
+            <span className="hidden md:inline">Kunci ke Brankas</span>
           </button>
         )}
 

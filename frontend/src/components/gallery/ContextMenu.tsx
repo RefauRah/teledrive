@@ -337,7 +337,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="flex items-center gap-2">
               <Sparkles size={15} className="text-accent-warm group-hover:scale-110 transition-transform animate-pulse" />
               <div>
-                <p className="text-xs font-bold text-text-primary leading-none">Aetheria Vault</p>
+                <p className="text-xs font-bold text-text-primary leading-none">Penyimpanan Cloud</p>
                 <p className="text-[10px] text-accent-warm/90 mt-0.5">Status & Info Cloud</p>
               </div>
             </div>

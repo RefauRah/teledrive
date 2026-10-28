@@ -224,11 +224,28 @@ export const AdminPage: React.FC = () => {
   const handleSaveQuota = async () => {
     if (!quotaModalUser) return;
     try {
+      const currentUsed = quotaModalUser.storage_used || 0;
+      const defaultQuotaBytes = config?.storageQuotaBytes || stats?.health?.defaultQuotaBytes || 10 * 1024 * 1024 * 1024;
+      const effectiveBytes = isQuotaUnlimited
+        ? -1
+        : quotaInputGb === '0' || quotaInputGb === ''
+        ? defaultQuotaBytes
+        : (parseFloat(quotaInputGb) || 0) * 1024 * 1024 * 1024;
+
+      if (!isQuotaUnlimited && effectiveBytes < currentUsed) {
+        showNotification(
+          'error',
+          `Gagal mengubah kuota: Kuota baru (${formatBytes(effectiveBytes)}) tidak boleh lebih kecil dari data yang sudah digunakan (${formatBytes(currentUsed)}).`
+        );
+        return;
+      }
+
       const quotaBytes = isQuotaUnlimited
         ? -1
         : quotaInputGb === '0' || quotaInputGb === ''
         ? null
         : parseFloat(quotaInputGb) * 1024 * 1024 * 1024;
+
       await updateAdminUser(quotaModalUser.id, { storage_quota_bytes: quotaBytes });
       const displayName = [quotaModalUser.first_name, quotaModalUser.last_name].filter(Boolean).join(' ') || (quotaModalUser.username ? `@${quotaModalUser.username}` : quotaModalUser.phone);
       showNotification(
@@ -655,7 +672,7 @@ export const AdminPage: React.FC = () => {
                     <div className="flex items-center justify-between p-3 rounded-xl bg-bg-tertiary/50">
                       <div className="flex items-center gap-2">
                         <Database size={14} className="text-emerald-400" />
-                        <span className="font-semibold text-text-primary">Database Turso</span>
+                        <span className="font-semibold text-text-primary">Database Cloud</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         Online
@@ -900,7 +917,7 @@ export const AdminPage: React.FC = () => {
                                   </button>
                                 )}
 
-                                {/* Reset Vault PIN */}
+                                {/* Reset PIN Brankas */}
                                 <button
                                   onClick={() => handleResetPin(u)}
                                   title="Reset PIN Brankas Rahasia"
@@ -1001,7 +1018,7 @@ export const AdminPage: React.FC = () => {
                       <th className="px-5 py-3.5">Nama File</th>
                       <th className="px-5 py-3.5">Ukuran</th>
                       <th className="px-5 py-3.5">Pemilik</th>
-                      <th className="px-5 py-3.5">Status Vault</th>
+                      <th className="px-5 py-3.5">Status Brankas</th>
                       <th className="px-5 py-3.5">Tanggal Upload</th>
                       <th className="px-5 py-3.5 text-right">Aksi Moderasi</th>
                     </tr>
@@ -1280,9 +1297,15 @@ export const AdminPage: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm glass-strong rounded-3xl p-6 border border-border-default/80 shadow-2xl animate-fade-in-up">
             <h3 className="text-sm font-extrabold text-text-primary mb-1">Atur Kuota Penyimpanan</h3>
-            <p className="text-xs text-text-muted mb-4">
+            <p className="text-xs text-text-muted mb-3">
               Pengguna: <strong className="text-text-primary">{[quotaModalUser.first_name, quotaModalUser.last_name].filter(Boolean).join(' ') || (quotaModalUser.username ? `@${quotaModalUser.username}` : quotaModalUser.phone)}</strong>
             </p>
+
+            {/* Current Storage Used Info */}
+            <div className="p-3 rounded-2xl bg-bg-tertiary border border-border-subtle flex items-center justify-between text-xs mb-3">
+              <span className="text-text-muted font-medium">Data Terpakai Saat Ini:</span>
+              <span className="font-extrabold text-accent-warm">{formatBytes(quotaModalUser.storage_used || 0)}</span>
+            </div>
 
             <div className="space-y-4">
               {/* Option Mode: Unlimited vs Batas Tertentu */}
@@ -1325,7 +1348,7 @@ export const AdminPage: React.FC = () => {
                   <label className="text-xs font-bold text-text-secondary block mb-1">Kapasitas Maksimal (GB)</label>
                   <input
                     type="number"
-                    step="0.5"
+                    step="0.1"
                     min="0"
                     value={quotaInputGb}
                     onChange={(e) => setQuotaInputGb(e.target.value)}
@@ -1338,20 +1361,53 @@ export const AdminPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
-                <button
-                  onClick={() => setQuotaModalUser(null)}
-                  className="px-4 py-2 rounded-xl bg-bg-tertiary text-text-secondary text-xs font-bold cursor-pointer hover:bg-bg-elevated"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleSaveQuota}
-                  className="px-4 py-2 rounded-xl bg-accent-warm hover:bg-accent-warm/90 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  Simpan Kuota
-                </button>
-              </div>
+              {(() => {
+                const currentUsed = quotaModalUser.storage_used || 0;
+                const defaultQuotaBytes = config?.storageQuotaBytes || stats?.health?.defaultQuotaBytes || 10 * 1024 * 1024 * 1024;
+                const targetBytes = quotaInputGb === '0' || quotaInputGb === ''
+                  ? defaultQuotaBytes
+                  : (parseFloat(quotaInputGb) || 0) * 1024 * 1024 * 1024;
+                const isTooSmall = !isQuotaUnlimited && targetBytes < currentUsed;
+
+                if (isTooSmall) {
+                  return (
+                    <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs leading-relaxed flex items-start gap-2 font-medium animate-fade-in">
+                      <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                      <span>
+                        Kuota baru <strong>({formatBytes(targetBytes)})</strong> tidak boleh lebih kecil dari data yang sudah digunakan <strong>({formatBytes(currentUsed)})</strong>.
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {(() => {
+                const currentUsed = quotaModalUser.storage_used || 0;
+                const defaultQuotaBytes = config?.storageQuotaBytes || stats?.health?.defaultQuotaBytes || 10 * 1024 * 1024 * 1024;
+                const targetBytes = quotaInputGb === '0' || quotaInputGb === ''
+                  ? defaultQuotaBytes
+                  : (parseFloat(quotaInputGb) || 0) * 1024 * 1024 * 1024;
+                const isTooSmall = !isQuotaUnlimited && targetBytes < currentUsed;
+
+                return (
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+                    <button
+                      onClick={() => setQuotaModalUser(null)}
+                      className="px-4 py-2 rounded-xl bg-bg-tertiary text-text-secondary text-xs font-bold cursor-pointer hover:bg-bg-elevated"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      disabled={isTooSmall}
+                      onClick={handleSaveQuota}
+                      className="px-4 py-2 rounded-xl bg-accent-warm hover:bg-accent-warm/90 text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Simpan Kuota
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

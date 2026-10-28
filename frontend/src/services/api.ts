@@ -22,10 +22,10 @@ export const api = axios.create({
   },
 });
 
-// Request interceptor: attach JWT from localStorage and Vault token from sessionStorage
+// Request interceptor: attach JWT from sessionStorage and Vault token from sessionStorage
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -38,15 +38,43 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: on 401, clear token and redirect to /login (exempt public /share routes)
+// Helper to reset session to initial page
+function clearSessionAndGoHome() {
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_user');
+  sessionStorage.removeItem('server_instance_id');
+  sessionStorage.removeItem('vault_token');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_user');
+  if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+    window.location.href = '/';
+  }
+}
+
+// Response interceptor: on server restart, 401, or server downtime, redirect to initial page
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const serverInstance = response.headers['x-server-instance'];
+    if (serverInstance) {
+      const storedInstance = sessionStorage.getItem('server_instance_id');
+      if (storedInstance && storedInstance !== serverInstance) {
+        // Server restarted while the user session was active
+        clearSessionAndGoHome();
+        return Promise.reject(new Error('Server telah direstart. Sesi diatur ulang ke halaman awal.'));
+      }
+      sessionStorage.setItem('server_instance_id', serverInstance);
+    }
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.startsWith('/share/')) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+    const isPublicShare = typeof window !== 'undefined' && window.location.pathname.startsWith('/share/');
+    if (!isPublicShare) {
+      // 401 Unauthorized
+      if (error.response?.status === 401) {
+        clearSessionAndGoHome();
+      } else if (!error.response && sessionStorage.getItem('auth_token')) {
+        // Network Error / Server offline / mati
+        clearSessionAndGoHome();
       }
     }
     return Promise.reject(error);
@@ -62,17 +90,26 @@ export async function sendCode(phone: string): Promise<AuthTransaction> {
   };
 }
 
-const mapUser = (u: any): User => ({
-  id: u.id.toString(),
-  phone: u.phone,
-  firstName: u.first_name || '',
-  lastName: u.last_name || '',
-  username: u.username,
-  photoUrl: u.photo_url || '',
-  role: u.role || 'user',
-  isBanned: Boolean(u.is_banned),
-  storageQuotaBytes: u.storage_quota_bytes !== null && u.storage_quota_bytes !== undefined ? Number(u.storage_quota_bytes) : null,
-});
+const mapUser = (u: any): User => {
+  const quota =
+    u.storage_quota_bytes !== undefined && u.storage_quota_bytes !== null
+      ? Number(u.storage_quota_bytes)
+      : u.storageQuotaBytes !== undefined && u.storageQuotaBytes !== null
+      ? Number(u.storageQuotaBytes)
+      : null;
+
+  return {
+    id: u.id.toString(),
+    phone: u.phone,
+    firstName: u.first_name || u.firstName || '',
+    lastName: u.last_name || u.lastName || '',
+    username: u.username,
+    photoUrl: u.photo_url || u.photoUrl || '',
+    role: u.role || 'user',
+    isBanned: Boolean(u.is_banned ?? u.isBanned),
+    storageQuotaBytes: quota,
+  };
+};
 
 export async function loginWithPassword(
   username: string,
@@ -279,12 +316,19 @@ export async function deleteFile(id: string): Promise<void> {
 // ─── Upload (Chunked for Serverless / Large Files up to 2GB) ──
 const CHUNK_SIZE = 512 * 1024; // 512 KB chunks (bypasses Vercel 4.5MB limit)
 
+export async function checkUploadQuota(fileSize: number): Promise<void> {
+  await api.post('/api/vfs/check-quota', { fileSize });
+}
+
 export async function uploadFile(
   file: File,
   folderId: string | null,
   onProgress: (progress: number) => void,
   abortSignal: AbortSignal
 ): Promise<VFile> {
+  // Pre-validate user's storage quota BEFORE uploading any chunks!
+  await checkUploadQuota(file.size);
+
   // Telegram requires isBig = true for files > 10MB
   const isBig = file.size > 10 * 1024 * 1024;
   const totalParts = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
@@ -308,6 +352,7 @@ export async function uploadFile(
         'X-Part-Index': partIndex.toString(),
         'X-Total-Parts': totalParts.toString(),
         'X-Is-Big': isBig ? '1' : '0',
+        'X-File-Size': file.size.toString(),
       },
       signal: abortSignal,
       onUploadProgress: (event) => {
@@ -344,7 +389,7 @@ export async function uploadFile(
 
 // ─── Download & Preview ──────────────────────────────────────
 export function getFileDownloadUrl(id: string, customVaultToken?: string): string {
-  const token = localStorage.getItem('auth_token');
+  const token = sessionStorage.getItem('auth_token');
   const vaultToken = customVaultToken || sessionStorage.getItem('vault_token');
   const baseUrl = import.meta.env.VITE_API_URL || '';
   const params = new URLSearchParams();
@@ -575,11 +620,15 @@ export async function deleteAdminFile(fileId: number): Promise<{ success: boolea
   const { data } = await api.delete<{ success: boolean; message: string }>(`/api/admin/files/${fileId}`);
   return data;
 }
-
 export async function getAdminConfig(): Promise<AdminConfig> {
   const { data } = await api.get<AdminConfig>('/api/admin/config');
   return data;
 }
 
-
-
+export async function verifyMe(): Promise<{ user: User; serverInstanceId: string }> {
+  const { data } = await api.get<{ user: any; serverInstanceId: string }>('/api/auth/me');
+  return {
+    user: mapUser(data.user),
+    serverInstanceId: data.serverInstanceId,
+  };
+}

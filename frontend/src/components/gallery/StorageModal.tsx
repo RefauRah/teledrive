@@ -16,6 +16,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import type { User, VFile, VFolder } from '../../domain/types';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { useSyncWithTelegram } from '../../hooks/useFiles';
 import { getStorageUsage, type StorageUsageInfo } from '../../services/api';
 
@@ -54,14 +55,20 @@ export const StorageModal: React.FC<StorageModalProps> = ({
   }>({ type: null, message: '' });
 
   const [storageInfo, setStorageInfo] = useState<StorageUsageInfo | null>(null);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   useEffect(() => {
     if (isOpen) {
       getStorageUsage()
-        .then((info) => setStorageInfo(info))
+        .then((info) => {
+          setStorageInfo(info);
+          if (info && user && user.storageQuotaBytes !== info.quotaBytes && !info.isUnlimited) {
+            updateUser({ storageQuotaBytes: info.quotaBytes });
+          }
+        })
         .catch((err) => console.error('Failed to load storage quota:', err));
     }
-  }, [isOpen, files]);
+  }, [isOpen, files, user, updateUser]);
 
   const syncMutation = useSyncWithTelegram();
 
@@ -195,64 +202,91 @@ export const StorageModal: React.FC<StorageModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-bg-secondary/70 border border-border-subtle/80 flex items-center gap-3.5">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              storageInfo?.isUnlimited
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-primary/15 text-primary'
-            }`}>
-              <ShieldCheck size={20} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-                Batas Kapasitas
-              </p>
-              <p className="text-base font-bold text-text-primary truncate">
-                {storageInfo?.isUnlimited ? (
-                  <span className="text-emerald-400">Unlimited ∞</span>
-                ) : (
-                  '10 GB Max'
-                )}
-              </p>
-            </div>
-          </div>
+          {(() => {
+            const isUnlimited = storageInfo
+              ? storageInfo.isUnlimited
+              : user?.storageQuotaBytes === -1;
+            const quotaLimit =
+              storageInfo && !storageInfo.isUnlimited
+                ? storageInfo.quotaBytes
+                : user?.storageQuotaBytes && user.storageQuotaBytes > 0
+                ? user.storageQuotaBytes
+                : 10 * 1024 * 1024 * 1024;
+
+            return (
+              <div className="p-4 rounded-2xl bg-bg-secondary/70 border border-border-subtle/80 flex items-center gap-3.5">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isUnlimited
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : 'bg-primary/15 text-primary'
+                  }`}
+                >
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+                    Batas Kapasitas
+                  </p>
+                  <p className="text-base font-bold text-text-primary truncate">
+                    {isUnlimited ? (
+                      <span className="text-emerald-400">Unlimited ∞</span>
+                    ) : (
+                      `${formatBytes(quotaLimit)} Max`
+                    )}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Storage Quota Progress Bar (if not unlimited) */}
-        {(!storageInfo || !storageInfo.isUnlimited) && (
-          <div className="p-4 rounded-2xl bg-bg-secondary/60 border border-border-subtle/70 mb-4 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-text-secondary flex items-center gap-1.5">
-                <HardDrive size={14} className="text-accent-warm" />
-                Penggunaan Kuota (10 GB):
-              </span>
-              <span className="font-bold text-text-primary">
-                {formatBytes(storageInfo?.usedBytes ?? totalBytes)} / 10 GB (
-                {storageInfo?.usedPercentage ??
-                  Math.min(100, Math.round((totalBytes / (10 * 1024 * 1024 * 1024)) * 10000) / 100)}
-                %)
-              </span>
+        {(() => {
+          const isUnlimited = storageInfo
+            ? storageInfo.isUnlimited
+            : user?.storageQuotaBytes === -1;
+          if (isUnlimited) return null;
+
+          const quotaLimit =
+            storageInfo && !storageInfo.isUnlimited
+              ? storageInfo.quotaBytes
+              : user?.storageQuotaBytes && user.storageQuotaBytes > 0
+              ? user.storageQuotaBytes
+              : 10 * 1024 * 1024 * 1024;
+          const used = storageInfo?.usedBytes ?? totalBytes;
+          const percentage =
+            storageInfo?.usedPercentage ??
+            Math.min(100, Math.round((used / quotaLimit) * 10000) / 100);
+
+          return (
+            <div className="p-4 rounded-2xl bg-bg-secondary/60 border border-border-subtle/70 mb-4 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-text-secondary flex items-center gap-1.5">
+                  <HardDrive size={14} className="text-accent-warm" />
+                  Penggunaan Kuota ({formatBytes(quotaLimit)}):
+                </span>
+                <span className="font-bold text-text-primary">
+                  {formatBytes(used)} / {formatBytes(quotaLimit)} ({percentage}%)
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-bg-tertiary rounded-full overflow-hidden p-0.5 border border-border-subtle/50">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    percentage > 90
+                      ? 'bg-rose-500'
+                      : percentage > 75
+                      ? 'bg-amber-500'
+                      : 'bg-gradient-to-r from-accent-warm to-accent-rose'
+                  }`}
+                  style={{
+                    width: `${Math.min(100, percentage)}%`,
+                  }}
+                />
+              </div>
             </div>
-            <div className="w-full h-2.5 bg-bg-tertiary rounded-full overflow-hidden p-0.5 border border-border-subtle/50">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  (storageInfo?.usedPercentage ?? 0) > 90
-                    ? 'bg-rose-500'
-                    : (storageInfo?.usedPercentage ?? 0) > 75
-                    ? 'bg-amber-500'
-                    : 'bg-gradient-to-r from-accent-warm to-accent-rose'
-                }`}
-                style={{
-                  width: `${Math.min(
-                    100,
-                    storageInfo?.usedPercentage ??
-                      (totalBytes / (10 * 1024 * 1024 * 1024)) * 100
-                  )}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Media Breakdown */}
         <div className="p-4 rounded-2xl bg-bg-secondary/50 border border-border-subtle/60 mb-4 space-y-2">
@@ -282,7 +316,7 @@ export const StorageModal: React.FC<StorageModalProps> = ({
               <Database size={14} className="text-accent-warm" />
               Database Engine
             </span>
-            <span className="font-semibold text-text-primary">Turso / SQLite libSQL</span>
+            <span className="font-semibold text-text-primary">Cloud Database Engine</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -296,7 +330,7 @@ export const StorageModal: React.FC<StorageModalProps> = ({
               <ShieldCheck size={14} className="text-emerald-400" />
               Enkripsi Sesi
             </span>
-            <span className="font-semibold text-emerald-400">AES-256-GCM</span>
+            <span className="font-semibold text-emerald-400">Terenkripsi Aman</span>
           </div>
           {user && (
             <div className="flex items-center justify-between pt-1 border-t border-border-subtle/30">

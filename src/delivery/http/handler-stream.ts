@@ -63,6 +63,7 @@ export class StreamHandler {
       const partIndexStr = (req.headers['x-part-index'] as string) || (req.query.part_index as string);
       const totalPartsStr = (req.headers['x-total-parts'] as string) || (req.query.total_parts as string);
       const isBigStr = (req.headers['x-is-big'] as string) || (req.query.is_big as string);
+      const fileSizeStr = (req.headers['x-file-size'] as string) || (req.query.file_size as string);
 
       if (!fileId || partIndexStr === undefined || totalPartsStr === undefined) {
         res.status(400).json({ error: 'x-file-id, x-part-index, and x-total-parts headers are required' });
@@ -72,6 +73,14 @@ export class StreamHandler {
       const partIndex = parseInt(partIndexStr, 10);
       const totalParts = parseInt(totalPartsStr, 10);
       const isBig = isBigStr === '1' || isBigStr === 'true';
+
+      // Pre-validate user's storage quota on the very first chunk before accepting any bytes into Telegram
+      if (partIndex === 0 && fileSizeStr) {
+        const fileSize = parseInt(fileSizeStr, 10);
+        if (!isNaN(fileSize) && fileSize > 0) {
+          await this.streamUsecase.validateStorageQuota(userId, fileSize);
+        }
+      }
 
       // Read chunk stream into buffer
       const chunks: Buffer[] = [];
@@ -89,7 +98,7 @@ export class StreamHandler {
       res.status(200).json({ ok: true, partIndex });
     } catch (err: any) {
       console.error('Chunk upload error:', err);
-      res.status(500).json({ error: err.message || 'Failed to upload chunk' });
+      res.status(400).json({ error: err.message || 'Failed to upload chunk' });
     }
   };
 
@@ -168,6 +177,23 @@ export class StreamHandler {
     } catch (err: any) {
       console.error('Get storage usage error:', err);
       res.status(500).json({ error: err.message || 'Failed to get storage usage' });
+    }
+  };
+
+  public handleCheckUploadQuota = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getAuthUserId(req);
+      const { fileSize } = req.body || {};
+      const size = parseInt(fileSize, 10);
+      if (isNaN(size) || size <= 0) {
+        res.status(400).json({ error: 'fileSize wajib diisi dan harus lebih dari 0' });
+        return;
+      }
+
+      await this.streamUsecase.validateStorageQuota(userId, size);
+      res.status(200).json({ allowed: true });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Kapasitas penyimpanan terlampaui' });
     }
   };
 }

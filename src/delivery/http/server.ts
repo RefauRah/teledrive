@@ -13,7 +13,9 @@ import { VFSHandler } from './handler-vfs.js';
 import { StreamHandler } from './handler-stream.js';
 import { ShareHandler } from './handler-share.js';
 import { AdminHandler } from './handler-admin.js';
-import { jwtMiddleware, adminMiddleware, errorHandler } from './middleware.js';
+import { jwtMiddleware, adminMiddleware, errorHandler, getAuthUserId } from './middleware.js';
+
+export const SERVER_INSTANCE_ID = Date.now().toString();
 
 export function createServer(
   jwtSecret: string,
@@ -25,6 +27,12 @@ export function createServer(
   userRepo?: UserRepository
 ): express.Express {
   const app = express();
+
+  // Attach Server Instance header to all responses so frontend detects restarts
+  app.use((_req, res, next) => {
+    res.setHeader('X-Server-Instance', SERVER_INSTANCE_ID);
+    next();
+  });
 
   // CORS middleware
   app.use(
@@ -45,6 +53,13 @@ export function createServer(
         'X-Share-Password',
         'X-Vault-Token',
       ],
+      exposedHeaders: [
+        'Content-Range',
+        'Accept-Ranges',
+        'Content-Length',
+        'Content-Type',
+        'X-Server-Instance',
+      ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     })
   );
@@ -64,6 +79,11 @@ export function createServer(
   // ─── API Routes ────────────────────────────────────────────────────────────
   const api = express.Router();
 
+  // Health and server instance check
+  api.get('/health', (_req, res) => {
+    res.json({ status: 'ok', serverInstanceId: SERVER_INSTANCE_ID, uptime: process.uptime() });
+  });
+
   // Auth routes (public)
   api.post('/auth/send-code', jsonParser, authHandler.handleSendCode);
   api.post('/auth/sign-in', jsonParser, authHandler.handleSignIn);
@@ -73,6 +93,38 @@ export function createServer(
   api.post('/auth/login', jsonParser, authHandler.handlePasswordLogin);
 
   // Auth routes (protected)
+  api.get('/auth/me', authJwt, async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      if (!userRepo) {
+        res.status(200).json({ userId, serverInstanceId: SERVER_INSTANCE_ID });
+        return;
+      }
+      const user = await userRepo.getById(userId);
+      if (!user) {
+        res.status(401).json({ error: 'User tidak ditemukan' });
+        return;
+      }
+      res.json({
+        user: {
+          id: user.id,
+          telegram_id: user.telegram_id,
+          phone: user.phone,
+          username: user.username,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          photo_url: user.photo_url,
+          role: user.role,
+          storage_quota_bytes: user.storage_quota_bytes,
+          storageQuotaBytes: user.storage_quota_bytes,
+          created_at: user.created_at,
+        },
+        serverInstanceId: SERVER_INSTANCE_ID,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Gagal memverifikasi user' });
+    }
+  });
   api.put('/auth/profile', authJwt, jsonParser, authHandler.handleUpdateProfile);
 
   // VFS routes (protected)
@@ -107,8 +159,9 @@ export function createServer(
   api.get('/vfs/vault/items', authJwt, vfsHandler.handleListVaultItems);
   api.post('/vfs/vault/toggle', authJwt, jsonParser, vfsHandler.handleToggleVaultStatus);
 
-  // Storage info (protected)
+  // Storage info & Pre-flight check (protected)
   api.get('/vfs/storage', authJwt, streamHandler.handleGetStorageUsage);
+  api.post('/vfs/check-quota', authJwt, jsonParser, streamHandler.handleCheckUploadQuota);
 
   // Upload (raw body stream, don't use jsonParser)
   api.post('/vfs/upload', authJwt, streamHandler.handleUpload);

@@ -53,7 +53,7 @@ export const LandingPage: React.FC = () => {
                 Aetheria
               </span>
               <span className="text-[10px] text-text-muted font-semibold tracking-wider uppercase">
-                Cloud Memory Vault
+                Cloud Memory Storage
               </span>
             </div>
           </Link>
@@ -81,7 +81,7 @@ export const LandingPage: React.FC = () => {
                 onClick={() => navigate('/drive')}
                 className="px-5 py-2.5 rounded-xl gradient-warm text-white text-xs sm:text-sm font-bold shadow-lg shadow-accent-warm/25 hover:opacity-95 active:scale-95 transition-all flex items-center gap-2 cursor-pointer btn-press"
               >
-                <span>Buka Vault Saya</span>
+                <span>Buka Galeri Saya</span>
                 <ArrowRight size={15} />
               </button>
             ) : (
@@ -129,7 +129,7 @@ export const LandingPage: React.FC = () => {
             onClick={handleStart}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl gradient-warm text-white font-extrabold text-base shadow-2xl shadow-accent-warm/35 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer btn-press"
           >
-            <span>{isAuthenticated ? 'Buka Galeri Vault' : 'Mulai Sekarang — Gratis 10 GB'}</span>
+            <span>{isAuthenticated ? 'Buka Galeri' : 'Mulai Sekarang — Gratis 10 GB'}</span>
             <ArrowRight size={18} />
           </button>
 
@@ -155,13 +155,13 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-2xl glass-strong border border-border-subtle flex flex-col items-center justify-center">
-            <span className="text-2xl sm:text-3xl font-black text-accent-rose">AES-256</span>
-            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Enkripsi Sesi</span>
+            <span className="text-2xl sm:text-3xl font-black text-accent-rose">Aman</span>
+            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Terenkripsi</span>
           </div>
 
           <div className="p-4 rounded-2xl glass-strong border border-border-subtle flex flex-col items-center justify-center">
-            <span className="text-2xl sm:text-3xl font-black text-accent-purple">0 Rp</span>
-            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Bebas Langganan</span>
+            <span className="text-2xl sm:text-3xl font-black text-accent-purple">Pribadi</span>
+            <span className="text-xs text-text-muted mt-1 font-semibold uppercase tracking-wider">Akses Penuh</span>
           </div>
         </div>
 
@@ -174,7 +174,7 @@ export const LandingPage: React.FC = () => {
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
                 <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                <span className="ml-2 text-xs font-semibold text-text-muted">Aetheria Vault — Galeri & Koleksi Kenangan</span>
+                <span className="ml-2 text-xs font-semibold text-text-muted">Aetheria — Galeri & Koleksi Kenangan</span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/30">
                 <ShieldCheck size={13} />
@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card 2: Video 4K Vault */}
+              {/* Card 2: Video 4K */}
               <div className="p-4 rounded-2xl bg-bg-tertiary/60 border border-border-subtle flex items-center gap-3.5 hover:border-accent-rose/40 transition-colors">
                 <div className="w-12 h-12 rounded-xl bg-accent-rose/15 text-accent-rose flex items-center justify-center shrink-0 shadow-lg">
                   <Film size={24} />
@@ -290,13 +290,13 @@ export const LandingPage: React.FC = () => {
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-5 border border-emerald-500/25 shadow-lg group-hover:scale-110 transition-transform">
                 <ShieldCheck size={26} />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">Enkripsi Tingkat Militer</h3>
+              <h3 className="text-xl font-bold text-text-primary mb-2">Enkripsi Data Aman</h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                Seluruh data sesi login dan akses penyimpanan dienkripsi dengan standar AES-256-GCM. Berkas tersimpan aman tanpa risiko kebocoran pihak ketiga.
+                Seluruh data sesi login dan akses penyimpanan dienkripsi secara aman. Berkas tersimpan dengan privasi terlindungi tanpa risiko kebocoran pihak ketiga.
               </p>
             </div>
             <div className="mt-6 flex items-center gap-2 text-xs font-bold text-emerald-400">
-              <span>AES-256-GCM Secure</span>
+              <span>Terenkripsi Aman</span>
               <CheckCircle2 size={14} />
             </div>
           </div>
@@ -360,11 +360,11 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <div className="flex items-start gap-3 text-xs text-text-secondary">
                   <CheckCircle2 size={16} className="text-accent-warm shrink-0 mt-0.5" />
-                  <span><strong>Database LibSQL Turso</strong>: Manajemen metadata kilat dengan latensi sub-milidetik.</span>
+                  <span><strong>Database Cloud Cepat</strong>: Manajemen metadata kilat dengan latensi sub-milidetik.</span>
                 </div>
                 <div className="flex items-start gap-3 text-xs text-text-secondary">
                   <CheckCircle2 size={16} className="text-accent-warm shrink-0 mt-0.5" />
-                  <span><strong>Enkripsi Sesi AES-256-GCM</strong>: Menjaga kredensial login Anda tetap aman di brankas database.</span>
+                  <span><strong>Enkripsi Sesi Aman</strong>: Menjaga kredensial login Anda tetap terlindungi di database.</span>
                 </div>
               </div>
             </div>
@@ -380,13 +380,13 @@ export const LandingPage: React.FC = () => {
               <div className="p-5 rounded-2xl bg-bg-secondary/70 border border-border-subtle flex flex-col gap-2">
                 <Database size={22} className="text-accent-rose" />
                 <h4 className="font-bold text-sm text-text-primary">Database Engine</h4>
-                <p className="text-xs text-text-muted">Turso / SQLite LibSQL Edge Engine</p>
+                <p className="text-xs text-text-muted">High-Performance Cloud Database</p>
               </div>
 
               <div className="p-5 rounded-2xl bg-bg-secondary/70 border border-border-subtle flex flex-col gap-2">
                 <ShieldCheck size={22} className="text-emerald-400" />
                 <h4 className="font-bold text-sm text-text-primary">Kriptografi</h4>
-                <p className="text-xs text-text-muted">Enkripsi Simetris AES-256-GCM</p>
+                <p className="text-xs text-text-muted">Enkripsi Data Terlindungi</p>
               </div>
 
               <div className="p-5 rounded-2xl bg-bg-secondary/70 border border-border-subtle flex flex-col gap-2">
@@ -480,7 +480,7 @@ export const LandingPage: React.FC = () => {
             <div className="w-6 h-6 rounded-lg gradient-warm flex items-center justify-center text-white font-extrabold text-xs">
               A
             </div>
-            <span className="font-bold text-text-primary">Aetheria Vault</span>
+            <span className="font-bold text-text-primary">Aetheria</span>
             <span>• Infinite Memory & Media Cloud</span>
           </div>
 
@@ -489,7 +489,7 @@ export const LandingPage: React.FC = () => {
             <a href="#keamanan" className="hover:text-text-primary transition-colors">Keamanan</a>
             <a href="#faq" className="hover:text-text-primary transition-colors">FAQ</a>
             <button onClick={() => navigate('/login')} className="hover:text-text-primary transition-colors font-bold text-accent-warm cursor-pointer">
-              Login Vault
+              Masuk Akun
             </button>
           </div>
         </div>

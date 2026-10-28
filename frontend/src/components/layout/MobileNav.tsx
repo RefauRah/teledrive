@@ -60,7 +60,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         <button
           onClick={onVaultClick}
           className="flex flex-col items-center gap-1 py-1 px-2.5 text-text-secondary hover:text-amber-400 active:scale-95 transition-all cursor-pointer group"
-          title="Brankas Rahasia (Private Vault)"
+          title="Brankas Rahasia"
         >
           <Lock size={20} className="group-hover:text-amber-400 text-amber-400/90 transition-colors" />
           <span className="text-[10px] font-medium tracking-tight">Brankas</span>

@@ -40,6 +40,15 @@ export interface CreateUserParams {
   storage_quota_bytes?: number | null;
 }
 
+function formatBytes(bytes: number, decimals = 1): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
 export class AdminUsecase {
   private userRepo: UserRepository;
   private fileRepo: FileRepository;
@@ -181,6 +190,21 @@ export class AdminUsecase {
     if (!targetUser) {
       throw new Error('Pengguna tidak ditemukan');
     }
+
+    // Check if new quota is lower than currently stored user data
+    if (quotaBytes !== -1) {
+      const storageUsed = await this.fileRepo.getTotalStorageUsed(targetUserId);
+      const effectiveQuota = quotaBytes !== null && quotaBytes > 0
+        ? quotaBytes
+        : this.config.storageQuotaBytes;
+
+      if (effectiveQuota < storageUsed) {
+        throw new Error(
+          `Gagal mengubah kuota: kuota baru (${formatBytes(effectiveQuota)}) tidak boleh lebih kecil dari kapasitas data yang sudah digunakan (${formatBytes(storageUsed)})`
+        );
+      }
+    }
+
     await this.userRepo.updateQuota(targetUserId, quotaBytes);
   }
 

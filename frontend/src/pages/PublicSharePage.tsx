@@ -287,7 +287,7 @@ export const PublicSharePage: React.FC = () => {
 
           <div className="flex items-center gap-2 text-xs font-semibold text-text-secondary bg-bg-tertiary/60 px-3.5 py-1.5 rounded-full border border-border-subtle shadow-sm">
             <Sparkles size={14} className="text-accent-warm" />
-            <span>Vault Berkas Bersama</span>
+            <span>Ruang Berkas Bersama</span>
           </div>
         </div>
       </header>
@@ -302,7 +302,7 @@ export const PublicSharePage: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-base font-bold text-text-primary">Menyiapkan Berkas...</h3>
-                <p className="text-xs text-text-secondary mt-1">Mengambil data dari Aetheria Cloud Vault</p>
+                <p className="text-xs text-text-secondary mt-1">Mengambil data dari Aetheria Cloud Storage</p>
               </div>
             </div>
           ) : error ? (

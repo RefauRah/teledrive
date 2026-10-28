@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './pages/LoginPage';
 import { AdminLoginPage } from './pages/AdminLoginPage';
@@ -10,6 +10,8 @@ import { LandingPage } from './pages/LandingPage';
 import { PublicSharePage } from './pages/PublicSharePage';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useAuthStore } from './stores/useAuthStore';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { verifyMe } from './services/api';
 import './index.css';
 
 // Create TanStack Query client
@@ -23,8 +25,26 @@ const queryClient = new QueryClient({
 });
 
 const AppRoutes: React.FC = () => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout, updateUser } = useAuthStore();
   const isAdmin = isAuthenticated && user?.role === 'admin';
+  const navigate = useNavigate();
+
+  // Verify session integrity on mount (handles app restarts, server restarts, token invalidation)
+  useEffect(() => {
+    if (isAuthenticated) {
+      verifyMe()
+        .then((res) => {
+          if (res?.user) {
+            updateUser(res.user);
+          }
+        })
+        .catch(() => {
+          // If server restarted, is offline, or token expired, reset to initial page
+          logout();
+          navigate('/', { replace: true });
+        });
+    }
+  }, [isAuthenticated, logout, updateUser, navigate]);
 
   return (
     <Routes>
@@ -77,28 +97,15 @@ const AppRoutes: React.FC = () => {
         element={
           isAdmin ? (
             <AdminPage />
-          ) : isAuthenticated ? (
-            <Navigate to="/" replace />
           ) : (
             <Navigate to="/pangurus/login" replace />
           )
         }
       />
-      <Route path="/admin" element={<Navigate to="/" replace />} />
-      <Route path="/admin/*" element={<Navigate to="/" replace />} />
+      <Route path="/admin" element={<NotFoundPage />} />
+      <Route path="/admin/*" element={<NotFoundPage />} />
       <Route path="/share/:token" element={<PublicSharePage />} />
-      <Route
-        path="/*"
-        element={
-          isAdmin ? (
-            <Navigate to="/pangurus" replace />
-          ) : isAuthenticated ? (
-            <MemoriesPage />
-          ) : (
-            <LandingPage />
-          )
-        }
-      />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

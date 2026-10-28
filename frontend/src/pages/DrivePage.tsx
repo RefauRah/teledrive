@@ -35,6 +35,7 @@ import {
 } from '../hooks/useFiles';
 import { downloadFile } from '../services/api';
 import { useUploadStore } from '../stores/useUploadStore';
+import { formatBytes } from '../utils/formatters';
 import type { VFile, VFolder } from '../domain/types';
 
 export const MemoriesPage: React.FC = () => {
@@ -131,6 +132,29 @@ export const MemoriesPage: React.FC = () => {
 
   // Upload into current folder
   const handleUpload = (uploadedFiles: File[], targetFolderId: string | null = currentFolderId) => {
+    // Immediate pre-validation against user's storage quota
+    const isUnlimited = user?.storageQuotaBytes === -1;
+    if (!isUnlimited) {
+      const quota =
+        user?.storageQuotaBytes && user.storageQuotaBytes > 0
+          ? user.storageQuotaBytes
+          : 10 * 1024 * 1024 * 1024;
+      const totalUsed = (allMemories.length > 0 ? allMemories : files).reduce((acc, f) => acc + (f.size || 0), 0);
+      const incomingTotal = uploadedFiles.reduce((acc, f) => acc + f.size, 0);
+
+      if (totalUsed + incomingTotal > quota) {
+        setConfirmDialog({
+          isOpen: true,
+          title: 'Kapasitas Penyimpanan Terlampaui',
+          message: `Ukuran berkas (${formatBytes(incomingTotal)}) melebihi sisa kapasitas kuota Anda (${formatBytes(Math.max(0, quota - totalUsed))}). Batas kuota akun Anda adalah ${formatBytes(quota)}. Silakan hapus beberapa berkas terlebih dahulu.`,
+          confirmLabel: 'Mengerti',
+          isDanger: true,
+          onConfirm: () => setConfirmDialog(null),
+        });
+        return;
+      }
+    }
+
     uploadedFiles.forEach((file) => {
       addFileToQueue(file, targetFolderId);
     });
