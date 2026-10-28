@@ -73,7 +73,7 @@ async function bootstrap(): Promise<void> {
   // 7. Setup HTTP server
   const app = createServer(cfg.jwtSecret, authUC, vfsUC, streamUC, shareUC, adminUC, userRepo);
 
-  const server = app.listen(cfg.port, () => {
+  const server = app.listen(cfg.port, '0.0.0.0', () => {
     console.log(`Server starting on port ${cfg.port}...`);
   });
 
