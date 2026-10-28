@@ -29,22 +29,25 @@ const AppRoutes: React.FC = () => {
   const isAdmin = isAuthenticated && user?.role === 'admin';
   const navigate = useNavigate();
 
-  // Verify session integrity on mount (handles app restarts, server restarts, token invalidation)
+  // Verify session integrity on initial mount (handles browser re-open after server restarts)
   useEffect(() => {
-    if (isAuthenticated) {
+    const token = sessionStorage.getItem('auth_token');
+    if (token) {
       verifyMe()
         .then((res) => {
           if (res?.user) {
             updateUser(res.user);
           }
         })
-        .catch(() => {
-          // If server restarted, is offline, or token expired, reset to initial page
-          logout();
-          navigate('/', { replace: true });
+        .catch((err) => {
+          // If server was restarted or token invalid on initial load, reset session
+          if (err?.response?.status === 401 || err?.message?.includes('Server telah direstart')) {
+            logout();
+            navigate('/', { replace: true });
+          }
         });
     }
-  }, [isAuthenticated, logout, updateUser, navigate]);
+  }, []);
 
   return (
     <Routes>

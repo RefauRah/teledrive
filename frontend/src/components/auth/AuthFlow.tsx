@@ -269,13 +269,20 @@ export default function AuthFlow() {
     try {
       await signInMutation.mutateAsync({ transactionId, code });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Kode tidak valid';
-      if (message.includes('SESSION_PASSWORD_NEEDED') || message.includes('2FA') || message.includes('password')) {
+      const axiosErr = err as any;
+      const backendError = axiosErr?.response?.data?.error || '';
+      const message = backendError || (err instanceof Error ? err.message : 'Kode tidak valid');
+      if (
+        backendError.includes('SESSION_PASSWORD_NEEDED') ||
+        message.includes('SESSION_PASSWORD_NEEDED') ||
+        message.includes('2FA') ||
+        message.includes('password')
+      ) {
         setRequiresPassword(true);
         setStep('password');
         setError('');
       } else {
-        setError(message);
+        setError(message.toLowerCase().includes('phone_code_invalid') ? 'Kode verifikasi tidak valid atau telah kedaluwarsa' : message);
         setOtp(['', '', '', '', '']);
         otpRefs.current[0]?.focus();
       }

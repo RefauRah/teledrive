@@ -14,6 +14,7 @@ import type {
   AdminFileItem,
   AdminConfig,
 } from '../domain/types';
+import { useAuthStore } from '../stores/useAuthStore';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
@@ -39,6 +40,7 @@ api.interceptors.request.use(
 );
 
 // Helper to reset session to initial page
+// Helper to reset session to initial page
 function clearSessionAndGoHome() {
   sessionStorage.removeItem('auth_token');
   sessionStorage.removeItem('auth_user');
@@ -46,7 +48,13 @@ function clearSessionAndGoHome() {
   sessionStorage.removeItem('vault_token');
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
-  if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+  useAuthStore.getState().logout();
+  if (
+    typeof window !== 'undefined' &&
+    window.location.pathname !== '/' &&
+    window.location.pathname !== '/login' &&
+    !window.location.pathname.startsWith('/pangurus/login')
+  ) {
     window.location.href = '/';
   }
 }
@@ -68,22 +76,30 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Never trigger session clear on cancelled/aborted requests
+    if (axios.isCancel(error)) {
+      return Promise.reject(error);
+    }
+
     const isPublicShare = typeof window !== 'undefined' && window.location.pathname.startsWith('/share/');
     const url = error.config?.url || '';
     const isAuthEndpoint =
       url.includes('/auth/send-code') ||
       url.includes('/auth/sign-in') ||
       url.includes('/auth/login') ||
-      url.includes('/auth/qr');
+      url.includes('/auth/qr') ||
+      url.includes('/auth/me');
     const isLoginPage =
       typeof window !== 'undefined' &&
-      (window.location.pathname === '/login' || window.location.pathname.startsWith('/pangurus/login'));
+      (window.location.pathname === '/login' ||
+        window.location.pathname.startsWith('/pangurus/login') ||
+        window.location.pathname === '/');
 
     if (!isPublicShare && !isAuthEndpoint && !isLoginPage) {
       // 401 Unauthorized for authenticated sessions
       if (error.response?.status === 401) {
         clearSessionAndGoHome();
-      } else if (!error.response && sessionStorage.getItem('auth_token')) {
+      } else if (!error.response && error.code === 'ERR_NETWORK' && sessionStorage.getItem('auth_token')) {
         // Network Error / Server offline / mati while logged in
         clearSessionAndGoHome();
       }
