@@ -49,6 +49,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: (token: string, user: User) => {
     sessionStorage.setItem('auth_token', token);
     sessionStorage.setItem('auth_user', JSON.stringify(user));
+    sessionStorage.removeItem('server_instance_id');
     // Clear localStorage to ensure no persistent leakage
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');

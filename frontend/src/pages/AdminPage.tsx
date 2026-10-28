@@ -110,7 +110,7 @@ export const AdminPage: React.FC = () => {
       return;
     }
     if (user && user.role !== 'admin') {
-      navigate('/', { replace: true });
+      navigate('/drive', { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 

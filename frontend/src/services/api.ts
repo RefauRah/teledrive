@@ -57,8 +57,9 @@ api.interceptors.response.use(
     const serverInstance = response.headers['x-server-instance'];
     if (serverInstance) {
       const storedInstance = sessionStorage.getItem('server_instance_id');
-      if (storedInstance && storedInstance !== serverInstance) {
-        // Server restarted while the user session was active
+      const hasAuthToken = Boolean(sessionStorage.getItem('auth_token'));
+      // Only invalidate if the user had an active authenticated session and instance ID changed
+      if (hasAuthToken && storedInstance && storedInstance !== serverInstance) {
         clearSessionAndGoHome();
         return Promise.reject(new Error('Server telah direstart. Sesi diatur ulang ke halaman awal.'));
       }
@@ -68,12 +69,22 @@ api.interceptors.response.use(
   },
   (error) => {
     const isPublicShare = typeof window !== 'undefined' && window.location.pathname.startsWith('/share/');
-    if (!isPublicShare) {
-      // 401 Unauthorized
+    const url = error.config?.url || '';
+    const isAuthEndpoint =
+      url.includes('/auth/send-code') ||
+      url.includes('/auth/sign-in') ||
+      url.includes('/auth/login') ||
+      url.includes('/auth/qr');
+    const isLoginPage =
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/login' || window.location.pathname.startsWith('/pangurus/login'));
+
+    if (!isPublicShare && !isAuthEndpoint && !isLoginPage) {
+      // 401 Unauthorized for authenticated sessions
       if (error.response?.status === 401) {
         clearSessionAndGoHome();
       } else if (!error.response && sessionStorage.getItem('auth_token')) {
-        // Network Error / Server offline / mati
+        // Network Error / Server offline / mati while logged in
         clearSessionAndGoHome();
       }
     }

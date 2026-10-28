@@ -4,14 +4,18 @@ import AuthFlow from '../components/auth/AuthFlow';
 import { useAuthStore } from '../stores/useAuthStore';
 
 export const LoginPage: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true });
+      if (user?.role === 'admin') {
+        navigate('/pangurus', { replace: true });
+      } else {
+        navigate('/drive', { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   return (
     <div className="min-h-screen w-full bg-bg-primary text-text-primary flex items-center justify-center p-6 relative overflow-hidden">

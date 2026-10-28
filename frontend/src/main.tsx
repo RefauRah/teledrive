@@ -54,7 +54,7 @@ const AppRoutes: React.FC = () => {
           isAdmin ? (
             <Navigate to="/pangurus" replace />
           ) : isAuthenticated ? (
-            <MemoriesPage />
+            <Navigate to="/drive" replace />
           ) : (
             <LandingPage />
           )
@@ -77,6 +77,8 @@ const AppRoutes: React.FC = () => {
         element={
           isAdmin ? (
             <Navigate to="/pangurus" replace />
+          ) : isAuthenticated ? (
+            <Navigate to="/drive" replace />
           ) : (
             <LoginPage />
           )
