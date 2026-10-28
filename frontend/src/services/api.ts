@@ -74,6 +74,7 @@ api.interceptors.response.use(
       url.includes('/auth/sign-in') ||
       url.includes('/auth/login') ||
       url.includes('/auth/qr');
+    const isVaultEndpoint = url.includes('/vfs/vault/');
     const isLoginPage =
       typeof window !== 'undefined' &&
       (window.location.pathname === '/login' ||
@@ -81,7 +82,7 @@ api.interceptors.response.use(
         window.location.pathname === '/');
 
     // Only if an authenticated session receives 401 Unauthorized on protected routes
-    if (!isPublicShare && !isAuthEndpoint && !isLoginPage) {
+    if (!isPublicShare && !isAuthEndpoint && !isLoginPage && !isVaultEndpoint) {
       if (error.response?.status === 401) {
         clearSessionAndGoHome();
       }

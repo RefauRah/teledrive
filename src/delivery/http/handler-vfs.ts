@@ -337,7 +337,7 @@ export class VFSHandler {
       const result = await this.vfsUsecase.verifyVaultPin(userId, pin);
       res.status(200).json(result);
     } catch (err: any) {
-      res.status(401).json({ error: err.message || 'Invalid vault PIN' });
+      res.status(400).json({ error: err.message || 'PIN Brankas salah' });
     }
   };
 

@@ -4,6 +4,7 @@ import {
   LockOpen,
   Shield,
   ShieldCheck,
+  ShieldAlert,
   KeyRound,
   X,
   ArrowLeft,
@@ -59,6 +60,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showWrongPinPopup, setShowWrongPinPopup] = useState<boolean>(false);
 
   // Unlocked vault state
   const [vaultFiles, setVaultFiles] = useState<VFile[]>([]);
@@ -68,29 +70,30 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
   const [isUnlockingItems, setIsUnlockingItems] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Initialize and check status when opened
+  // Close and lock modal immediately
+  const handleCloseModal = useCallback(() => {
+    setStoredVaultToken(null);
+    setVaultFiles([]);
+    setVaultFolders([]);
+    setSelectedFileIds(new Set());
+    setSelectedFolderIds(new Set());
+    setPinDigits('');
+    setErrorMessage('');
+    setShowWrongPinPopup(false);
+    setStep('CHECKING');
+    onClose();
+  }, [onClose]);
+
+  // Initialize and check status when opened - ALWAYS requires PIN if set
   const loadInitialStatus = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');
     setPinDigits('');
+    setShowWrongPinPopup(false);
+    // Clear stored vault token on open so closing/reopening always requires entering PIN
+    setStoredVaultToken(null);
 
     try {
-      const storedToken = getStoredVaultToken();
-      if (storedToken) {
-        // Test if session is still valid
-        try {
-          const items = await getVaultItems();
-          setVaultFiles(items.files);
-          setVaultFolders(items.folders);
-          setStep('UNLOCKED');
-          setIsLoading(false);
-          return;
-        } catch {
-          // Token expired or invalid
-          setStoredVaultToken(null);
-        }
-      }
-
       const status = await getVaultStatus();
       if (status.hasPin) {
         setStep('ENTER_PIN');
@@ -109,10 +112,15 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
     if (isOpen) {
       loadInitialStatus();
     } else {
-      setPinDigits('');
-      setErrorMessage('');
+      setStoredVaultToken(null);
+      setVaultFiles([]);
+      setVaultFolders([]);
       setSelectedFileIds(new Set());
       setSelectedFolderIds(new Set());
+      setPinDigits('');
+      setErrorMessage('');
+      setShowWrongPinPopup(false);
+      setStep('CHECKING');
     }
   }, [isOpen, loadInitialStatus]);
 
@@ -184,7 +192,9 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
         await fetchVaultItems();
         setStep('UNLOCKED');
       } catch (err: any) {
+        setIsLoading(false);
         triggerError('PIN salah. Akses ditolak.');
+        setShowWrongPinPopup(true);
       } finally {
         setIsLoading(false);
       }
@@ -199,7 +209,9 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
         setPinDigits('');
         setStep('CHANGE_NEW');
       } catch (err: any) {
+        setIsLoading(false);
         triggerError('PIN lama tidak sesuai.');
+        setShowWrongPinPopup(true);
       } finally {
         setIsLoading(false);
       }
@@ -257,13 +269,18 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
       } else if (e.key === 'Backspace') {
         handleBackspace();
       } else if (e.key === 'Escape') {
-        onClose();
+        if (showWrongPinPopup) {
+          setShowWrongPinPopup(false);
+          setPinDigits('');
+        } else {
+          handleCloseModal();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, step, pinDigits, isLoading, isShaking]);
+  }, [isOpen, step, pinDigits, isLoading, isShaking, showWrongPinPopup, handleCloseModal]);
 
   // Lock Vault immediately
   const handleLockSafe = () => {
@@ -327,8 +344,14 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
       selectedFolderIds.size === vaultFolders.length;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in">
-        <div className="relative w-full max-w-5xl h-[88vh] bg-bg-primary/95 rounded-3xl shadow-2xl border border-amber-500/20 flex flex-col overflow-hidden animate-fade-in-scale">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in"
+        onClick={handleCloseModal}
+      >
+        <div
+          className="relative w-full max-w-5xl h-[88vh] bg-bg-primary/95 rounded-3xl shadow-2xl border border-amber-500/20 flex flex-col overflow-hidden animate-fade-in-scale"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-bg-secondary/40 shrink-0">
             <div className="flex items-center gap-3.5">
@@ -374,7 +397,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
               </button>
 
               <button
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer"
               >
                 <X size={18} />
@@ -614,8 +637,14 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in select-none">
-      <div className="relative w-full max-w-sm glass-strong rounded-3xl p-6 shadow-2xl border border-amber-500/30 flex flex-col items-center animate-fade-in-scale">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in select-none"
+      onClick={handleCloseModal}
+    >
+      <div
+        className="relative w-full max-w-sm glass-strong rounded-3xl p-6 shadow-2xl border border-amber-500/30 flex flex-col items-center animate-fade-in-scale"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Top close/back */}
         <div className="w-full flex items-center justify-between mb-2">
           {step === 'SETUP_CONFIRM' || step === 'CHANGE_OLD' || step === 'CHANGE_NEW' ? (
@@ -636,7 +665,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
           )}
 
           <button
-            onClick={onClose}
+            onClick={handleCloseModal}
             className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -740,6 +769,44 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
           <span>Enkripsi PIN dengan Scrypt & Zero-Knowledge Verification</span>
         </p>
       </div>
+
+      {/* Wrong PIN Popup Dialog */}
+      {showWrongPinPopup && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowWrongPinPopup(false);
+            setPinDigits('');
+          }}
+        >
+          <div
+            className="relative w-full max-w-xs bg-bg-secondary border border-rose-500/40 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center animate-fade-in-scale"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center mb-3.5 text-rose-400 shadow-lg shadow-rose-500/20">
+              <ShieldAlert size={28} />
+            </div>
+            <h4 className="text-base font-extrabold text-text-primary mb-1.5">
+              PIN Brankas Salah!
+            </h4>
+            <p className="text-xs text-text-muted mb-5 leading-relaxed">
+              PIN yang Anda masukkan tidak sesuai. Silakan coba masukkan PIN yang benar.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowWrongPinPopup(false);
+                setPinDigits('');
+                setErrorMessage('');
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 active:scale-95 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-rose-500/25"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
