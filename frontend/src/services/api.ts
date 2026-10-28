@@ -39,12 +39,11 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Helper to reset session to initial page
-// Helper to reset session to initial page
+// Helper to reset session to login page
 function clearSessionAndGoHome() {
+  const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/pangurus');
   sessionStorage.removeItem('auth_token');
   sessionStorage.removeItem('auth_user');
-  sessionStorage.removeItem('server_instance_id');
   sessionStorage.removeItem('vault_token');
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
@@ -55,26 +54,13 @@ function clearSessionAndGoHome() {
     window.location.pathname !== '/login' &&
     !window.location.pathname.startsWith('/pangurus/login')
   ) {
-    window.location.href = '/';
+    window.location.href = isAdminRoute ? '/pangurus/login' : '/login';
   }
 }
 
-// Response interceptor: on server restart, 401, or server downtime, redirect to initial page
+// Response interceptor: handle 401 Unauthorized for expired/invalid sessions
 api.interceptors.response.use(
-  (response) => {
-    const serverInstance = response.headers['x-server-instance'];
-    if (serverInstance) {
-      const storedInstance = sessionStorage.getItem('server_instance_id');
-      const hasAuthToken = Boolean(sessionStorage.getItem('auth_token'));
-      // Only invalidate if the user had an active authenticated session and instance ID changed
-      if (hasAuthToken && storedInstance && storedInstance !== serverInstance) {
-        clearSessionAndGoHome();
-        return Promise.reject(new Error('Server telah direstart. Sesi diatur ulang ke halaman awal.'));
-      }
-      sessionStorage.setItem('server_instance_id', serverInstance);
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
     // Never trigger session clear on cancelled/aborted requests
     if (axios.isCancel(error)) {
@@ -87,20 +73,16 @@ api.interceptors.response.use(
       url.includes('/auth/send-code') ||
       url.includes('/auth/sign-in') ||
       url.includes('/auth/login') ||
-      url.includes('/auth/qr') ||
-      url.includes('/auth/me');
+      url.includes('/auth/qr');
     const isLoginPage =
       typeof window !== 'undefined' &&
       (window.location.pathname === '/login' ||
         window.location.pathname.startsWith('/pangurus/login') ||
         window.location.pathname === '/');
 
+    // Only if an authenticated session receives 401 Unauthorized on protected routes
     if (!isPublicShare && !isAuthEndpoint && !isLoginPage) {
-      // 401 Unauthorized for authenticated sessions
       if (error.response?.status === 401) {
-        clearSessionAndGoHome();
-      } else if (!error.response && error.code === 'ERR_NETWORK' && sessionStorage.getItem('auth_token')) {
-        // Network Error / Server offline / mati while logged in
         clearSessionAndGoHome();
       }
     }

@@ -28,11 +28,7 @@ export function createServer(
 ): express.Express {
   const app = express();
 
-  // Attach Server Instance header to all responses so frontend detects restarts
-  app.use((_req, res, next) => {
-    res.setHeader('X-Server-Instance', SERVER_INSTANCE_ID);
-    next();
-  });
+
 
   // CORS middleware
   app.use(

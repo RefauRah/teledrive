@@ -29,7 +29,7 @@ const AppRoutes: React.FC = () => {
   const isAdmin = isAuthenticated && user?.role === 'admin';
   const navigate = useNavigate();
 
-  // Verify session integrity on initial mount (handles browser re-open after server restarts)
+  // Verify session integrity on initial mount
   useEffect(() => {
     const token = sessionStorage.getItem('auth_token');
     if (token) {
@@ -40,10 +40,11 @@ const AppRoutes: React.FC = () => {
           }
         })
         .catch((err) => {
-          // If server was restarted or token invalid on initial load, reset session
-          if (err?.response?.status === 401 || err?.message?.includes('Server telah direstart')) {
+          // Only clear session if token is genuinely rejected (401 Unauthorized)
+          if (err?.response?.status === 401) {
             logout();
-            navigate('/', { replace: true });
+            const isAdminRoute = window.location.pathname.startsWith('/pangurus');
+            navigate(isAdminRoute ? '/pangurus/login' : '/login', { replace: true });
           }
         });
     }
