@@ -33,7 +33,7 @@ import {
   useDeleteFile,
   useToggleVaultStatus,
 } from '../hooks/useFiles';
-import { downloadFile } from '../services/api';
+import { downloadFile, setStoredVaultToken } from '../services/api';
 import { useUploadStore } from '../stores/useUploadStore';
 import { formatBytes } from '../utils/formatters';
 import type { VFile, VFolder } from '../domain/types';
@@ -677,19 +677,24 @@ export const MemoriesPage: React.FC = () => {
       )}
 
       {/* Private Vault Modal (Brankas Rahasia dengan PIN) */}
-      <PrivateVaultModal
-        isOpen={isVaultModalOpen}
-        onClose={() => setIsVaultModalOpen(false)}
-        onPreviewFile={(file, _fList, idx) => {
-          setLightboxFile(file);
-          setLightboxIndex(idx);
-        }}
-        onItemsChanged={async () => {
-          await queryClient.invalidateQueries({ queryKey: ['directory'] });
-          await queryClient.invalidateQueries({ queryKey: ['memories'] });
-          await Promise.all([refetchDirectory(), refetchMemories()]);
-        }}
-      />
+      {isVaultModalOpen && (
+        <PrivateVaultModal
+          isOpen={isVaultModalOpen}
+          onClose={() => {
+            setStoredVaultToken(null);
+            setIsVaultModalOpen(false);
+          }}
+          onPreviewFile={(file, _fList, idx) => {
+            setLightboxFile(file);
+            setLightboxIndex(idx);
+          }}
+          onItemsChanged={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['directory'] });
+            await queryClient.invalidateQueries({ queryKey: ['memories'] });
+            await Promise.all([refetchDirectory(), refetchMemories()]);
+          }}
+        />
+      )}
 
       {/* Cloud Storage & Sync Modal */}
       <StorageModal

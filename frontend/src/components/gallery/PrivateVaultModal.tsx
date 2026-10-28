@@ -53,7 +53,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
   onPreviewFile,
   onItemsChanged,
 }) => {
-  const [step, setStep] = useState<VaultStep>('CHECKING');
+  const [step, setStep] = useState<VaultStep>('ENTER_PIN');
   const [pinDigits, setPinDigits] = useState<string>('');
   const [tempFirstPin, setTempFirstPin] = useState<string>('');
   const [tempOldPin, setTempOldPin] = useState<string>('');
@@ -70,7 +70,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
   const [isUnlockingItems, setIsUnlockingItems] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Close and lock modal immediately
+  // Close and lock modal immediately (close brankas = kunci brankas)
   const handleCloseModal = useCallback(() => {
     setStoredVaultToken(null);
     setVaultFiles([]);
@@ -80,7 +80,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
     setPinDigits('');
     setErrorMessage('');
     setShowWrongPinPopup(false);
-    setStep('CHECKING');
+    setStep('ENTER_PIN');
     onClose();
   }, [onClose]);
 
@@ -102,7 +102,8 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
       }
     } catch (err: any) {
       console.error('Failed to check vault status:', err);
-      setErrorMessage('Gagal memeriksa status Brankas.');
+      // Default to ENTER_PIN on network/verification error for security
+      setStep('ENTER_PIN');
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +121,7 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
       setPinDigits('');
       setErrorMessage('');
       setShowWrongPinPopup(false);
-      setStep('CHECKING');
+      setStep('ENTER_PIN');
     }
   }, [isOpen, loadInitialStatus]);
 
@@ -282,17 +283,9 @@ export const PrivateVaultModal: React.FC<PrivateVaultModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, step, pinDigits, isLoading, isShaking, showWrongPinPopup, handleCloseModal]);
 
-  // Lock Vault immediately
+  // Lock & close vault immediately (close brankas = kunci brankas)
   const handleLockSafe = () => {
-    setStoredVaultToken(null);
-    setVaultFiles([]);
-    setVaultFolders([]);
-    setSelectedFileIds(new Set());
-    setSelectedFolderIds(new Set());
-    setPinDigits('');
-    setStep('ENTER_PIN');
-    setNotification('Brankas berhasil dikunci.');
-    setTimeout(() => setNotification(null), 2500);
+    handleCloseModal();
   };
 
   // Restore/Unlock selected items back to main gallery
